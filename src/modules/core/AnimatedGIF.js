@@ -303,11 +303,23 @@ AnimatedGIF.prototype = {
           ctx.drawImage(element, 0, 0, width, height);
 
           if (textToUse) {
-              ctx.font = font;
-              ctx.fillStyle = fontColor;
-              ctx.textAlign = textAlign;
-              ctx.textBaseline = textBaseline;
-              ctx.fillText(textToUse, textXCoordinate, textYCoordinate);
+            ctx.font = font;
+            ctx.fillStyle = fontColor;
+            ctx.textAlign = textAlign;
+            ctx.textBaseline = textBaseline;
+            var returnChar = ['\n', '\t', '<br/>', '<br>', '<hr>'];
+            var spliter = returnChar.find(char => textToUse.includes(char))
+            if (spliter) {
+                var lines = textToUse.split(spliter)
+            }
+            var textHeight = Number(fontSize.replace("px",""))
+            var fullTextHeight = (textHeight + 16 ) * lines.length
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, height, width, -fullTextHeight)
+            ctx.fillStyle = fontColor;
+            for (var i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[i], textXCoordinate, textYCoordinate - (i * textHeight + 16));
+            }
           }
           if(waterMark) {
             ctx.drawImage(waterMark, waterMarkXCoordinate, waterMarkYCoordinate, waterMarkWidth, waterMarkHeight);
