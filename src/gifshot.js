@@ -10,277 +10,242 @@
  * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
 */
 
-var utils = {
-    URL: window.URL || window.webkitURL || window.mozURL || window.msURL,
-    getUserMedia: function () {
-        var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
-
-        return getUserMedia ? getUserMedia.bind(navigator) : getUserMedia;
-    }(),
-    requestAnimFrame: window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame,
-    requestTimeout: function requestTimeout(callback, delay) {
-        callback = callback || utils.noop;
-        delay = delay || 0;
-
-        if (!utils.requestAnimFrame) {
-            return setTimeout(callback, delay);
+const utils = {
+  URL: window.URL || window.webkitURL || window.mozURL || window.msURL,
+  getUserMedia: (() => {
+    const getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+    return getUserMedia ? getUserMedia.bind(navigator) : getUserMedia;
+  })(),
+  requestAnimFrame: window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame,
+  requestTimeout: (callback, delay) => {
+    callback = callback || utils.noop;
+    delay = delay || 0;
+    if (!utils.requestAnimFrame) {
+      return setTimeout(callback, delay);
+    }
+    const start = new Date().getTime();
+    let handle = new Object();
+    const requestAnimFrame = utils.requestAnimFrame;
+    const loop = () => {
+      const current = new Date().getTime();
+      const delta = current - start;
+      delta >= delay ? callback.call() : handle.value = requestAnimFrame(loop);
+    };
+    handle.value = requestAnimFrame(loop);
+    return handle;
+  },
+  Blob: window.Blob || window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder || window.MSBlobBuilder,
+  btoa: (() => {
+    let btoa = window.btoa || function (input) {
+      let output = '';
+      let i = 0;
+      let l = input.length;
+      let key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      let chr1;
+      let chr2;
+      let chr3;
+      let enc1;
+      let enc2;
+      let enc3;
+      let enc4;
+      while (i < l) {
+        chr1 = input.charCodeAt(i++);
+        chr2 = input.charCodeAt(i++);
+        chr3 = input.charCodeAt(i++);
+        enc1 = chr1 >> 2;
+        enc2 = (chr1 & 3) << 4 | chr2 >> 4;
+        enc3 = (chr2 & 15) << 2 | chr3 >> 6;
+        enc4 = chr3 & 63;
+        if (isNaN(chr2)) {
+          enc3 = enc4 = 64;
+        } else if (isNaN(chr3)) {
+          enc4 = 64;
         }
-
-        var start = new Date().getTime();
-        var handle = new Object();
-        var requestAnimFrame = utils.requestAnimFrame;
-
-        var loop = function loop() {
-            var current = new Date().getTime();
-            var delta = current - start;
-
-            delta >= delay ? callback.call() : handle.value = requestAnimFrame(loop);
-        };
-
-        handle.value = requestAnimFrame(loop);
-
-        return handle;
+        output = output + key.charAt(enc1) + key.charAt(enc2) + key.charAt(enc3) + key.charAt(enc4);
+      }
+      return output;
+    };
+    return btoa ? btoa.bind(window) : utils.noop;
+  })(),
+  isObject: obj => {
+    return obj && Object.prototype.toString.call(obj) === '[object Object]';
+  },
+  isEmptyObject: obj => {
+    return utils.isObject(obj) && !Object.keys(obj).length;
+  },
+  isArray: arr => {
+    return arr && Array.isArray(arr);
+  },
+  isFunction: func => {
+    return func && typeof func === 'function';
+  },
+  isElement: elem => {
+    return elem && elem.nodeType === 1;
+  },
+  isString: value => {
+    return typeof value === 'string' || Object.prototype.toString.call(value) === '[object String]';
+  },
+  isSupported: {
+    canvas: () => {
+      var el = document.createElement('canvas');
+      return el && el.getContext && el.getContext('2d');
     },
-    Blob: window.Blob || window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder || window.MSBlobBuilder,
-    btoa: function () {
-        var btoa = window.btoa || function (input) {
-            var output = '';
-            var i = 0;
-            var l = input.length;
-            var key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-            var chr1 = void 0;
-            var chr2 = void 0;
-            var chr3 = void 0;
-            var enc1 = void 0;
-            var enc2 = void 0;
-            var enc3 = void 0;
-            var enc4 = void 0;
-
-            while (i < l) {
-                chr1 = input.charCodeAt(i++);
-                chr2 = input.charCodeAt(i++);
-                chr3 = input.charCodeAt(i++);
-                enc1 = chr1 >> 2;
-                enc2 = (chr1 & 3) << 4 | chr2 >> 4;
-                enc3 = (chr2 & 15) << 2 | chr3 >> 6;
-                enc4 = chr3 & 63;
-
-                if (isNaN(chr2)) {
-                    enc3 = enc4 = 64;
-                } else if (isNaN(chr3)) {
-                    enc4 = 64;
-                }
-
-                output = output + key.charAt(enc1) + key.charAt(enc2) + key.charAt(enc3) + key.charAt(enc4);
-            }
-
-            return output;
-        };
-
-        return btoa ? btoa.bind(window) : utils.noop;
-    }(),
-    isObject: function isObject(obj) {
-        return obj && Object.prototype.toString.call(obj) === '[object Object]';
+    webworkers: () => {
+      return window.Worker;
     },
-    isEmptyObject: function isEmptyObject(obj) {
-        return utils.isObject(obj) && !Object.keys(obj).length;
+    blob: () => {
+      return utils.Blob;
     },
-    isArray: function isArray(arr) {
-        return arr && Array.isArray(arr);
+    Uint8Array: () => {
+      return window.Uint8Array;
     },
-    isFunction: function isFunction(func) {
-        return func && typeof func === 'function';
+    Uint32Array: () => {
+      return window.Uint32Array;
     },
-    isElement: function isElement(elem) {
-        return elem && elem.nodeType === 1;
-    },
-    isString: function isString(value) {
-        return typeof value === 'string' || Object.prototype.toString.call(value) === '[object String]';
-    },
-    isSupported: {
-        canvas: function canvas() {
-            var el = document.createElement('canvas');
+    videoCodecs: (() => {
+      const testEl = document.createElement('video');
+      let supportObj = {
+        'mp4': false,
+        'h264': false,
+        'ogv': false,
+        'ogg': false,
+        'webm': false
+      };
+      try {
+        if (testEl && testEl.canPlayType) {
+          // Check for MPEG-4 support
+          supportObj.mp4 = testEl.canPlayType('video/mp4; codecs="mp4v.20.8"') !== '';
 
-            return el && el.getContext && el.getContext('2d');
-        },
-        webworkers: function webworkers() {
-            return window.Worker;
-        },
-        blob: function blob() {
-            return utils.Blob;
-        },
-        Uint8Array: function Uint8Array() {
-            return window.Uint8Array;
-        },
-        Uint32Array: function Uint32Array() {
-            return window.Uint32Array;
-        },
-        videoCodecs: function () {
-            var testEl = document.createElement('video');
-            var supportObj = {
-                'mp4': false,
-                'h264': false,
-                'ogv': false,
-                'ogg': false,
-                'webm': false
-            };
+          // Check for h264 support
+          supportObj.h264 = (testEl.canPlayType('video/mp4; codecs="avc1.42E01E"') || testEl.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')) !== '';
 
-            try {
-                if (testEl && testEl.canPlayType) {
-                    // Check for MPEG-4 support
-                    supportObj.mp4 = testEl.canPlayType('video/mp4; codecs="mp4v.20.8"') !== '';
+          // Check for Ogv support
+          supportObj.ogv = testEl.canPlayType('video/ogg; codecs="theora"') !== '';
 
-                    // Check for h264 support
-                    supportObj.h264 = (testEl.canPlayType('video/mp4; codecs="avc1.42E01E"') || testEl.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')) !== '';
+          // Check for Ogg support
+          supportObj.ogg = testEl.canPlayType('video/ogg; codecs="theora"') !== '';
 
-                    // Check for Ogv support
-                    supportObj.ogv = testEl.canPlayType('video/ogg; codecs="theora"') !== '';
-
-                    // Check for Ogg support
-                    supportObj.ogg = testEl.canPlayType('video/ogg; codecs="theora"') !== '';
-
-                    // Check for Webm support
-                    supportObj.webm = testEl.canPlayType('video/webm; codecs="vp8, vorbis"') !== -1;
-                }
-            } catch (e) {}
-
-            return supportObj;
-        }()
-    },
-    noop: function noop() {},
-    each: function each(collection, callback) {
-        var x = void 0;
-        var len = void 0;
-
-        if (utils.isArray(collection)) {
-            x = -1;
-            len = collection.length;
-
-            while (++x < len) {
-                if (callback(x, collection[x]) === false) {
-                    break;
-                }
-            }
-        } else if (utils.isObject(collection)) {
-            for (x in collection) {
-                if (collection.hasOwnProperty(x)) {
-                    if (callback(x, collection[x]) === false) {
-                        break;
-                    }
-                }
-            }
+          // Check for Webm support
+          supportObj.webm = testEl.canPlayType('video/webm; codecs="vp8, vorbis"') !== -1;
         }
-    },
-    mergeOptions: function mergeOptions(defaultOptions, userOptions) {
-        if (!utils.isObject(defaultOptions) || !utils.isObject(userOptions) || !Object.keys) {
-            return;
+      } catch (e) {}
+      return supportObj;
+    })()
+  },
+  noop: () => {},
+  each: (collection, callback) => {
+    let x;
+    let len;
+    if (utils.isArray(collection)) {
+      x = -1;
+      len = collection.length;
+      while (++x < len) {
+        if (callback(x, collection[x]) === false) {
+          break;
         }
-
-        var newObj = {};
-
-        utils.each(defaultOptions, function (key, val) {
-            newObj[key] = defaultOptions[key];
-        });
-
-        utils.each(userOptions, function (key, val) {
-            var currentUserOption = userOptions[key];
-
-            if (!utils.isObject(currentUserOption)) {
-                newObj[key] = currentUserOption;
-            } else {
-                if (!defaultOptions[key]) {
-                    newObj[key] = currentUserOption;
-                } else {
-                    newObj[key] = utils.mergeOptions(defaultOptions[key], currentUserOption);
-                }
-            }
-        });
-
-        return newObj;
-    },
-    setCSSAttr: function setCSSAttr(elem, attr, val) {
-        if (!utils.isElement(elem)) {
-            return;
+      }
+    } else if (utils.isObject(collection)) {
+      for (x in collection) {
+        if (collection.hasOwnProperty(x)) {
+          if (callback(x, collection[x]) === false) {
+            break;
+          }
         }
-
-        if (utils.isString(attr) && utils.isString(val)) {
-            elem.style[attr] = val;
-        } else if (utils.isObject(attr)) {
-            utils.each(attr, function (key, val) {
-                elem.style[key] = val;
-            });
+      }
+    }
+  },
+  mergeOptions: (defaultOptions, userOptions) => {
+    if (!utils.isObject(defaultOptions) || !utils.isObject(userOptions) || !Object.keys) {
+      return;
+    }
+    let newObj = {};
+    utils.each(defaultOptions, (key, val) => {
+      newObj[key] = defaultOptions[key];
+    });
+    utils.each(userOptions, (key, val) => {
+      const currentUserOption = userOptions[key];
+      if (!utils.isObject(currentUserOption)) {
+        newObj[key] = currentUserOption;
+      } else {
+        if (!defaultOptions[key]) {
+          newObj[key] = currentUserOption;
+        } else {
+          newObj[key] = utils.mergeOptions(defaultOptions[key], currentUserOption);
         }
-    },
-    removeElement: function removeElement(node) {
-        if (!utils.isElement(node)) {
-            return;
-        }
-        if (node.parentNode) {
-            node.parentNode.removeChild(node);
-        }
-    },
-    createWebWorker: function createWebWorker(content) {
-        if (!utils.isString(content)) {
-            return {};
-        }
-
-        try {
-            var blob = new utils.Blob([content], {
-                'type': 'text/javascript'
-            });
-            var objectUrl = utils.URL.createObjectURL(blob);
-            var worker = new Worker(objectUrl);
-
-            return {
-                'objectUrl': objectUrl,
-                'worker': worker
-            };
-        } catch (e) {
-            return '' + e;
-        }
-    },
-    getExtension: function getExtension(src) {
-        return src.substr(src.lastIndexOf('.') + 1, src.length);
-    },
-    getFontSize: function getFontSize() {
-        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-        if (!document.body || options.resizeFont === false) {
-            return options.fontSize;
-        }
-
-        var text = options.text;
-        var containerWidth = options.gifWidth;
-        var fontSize = parseInt(options.fontSize, 10);
-        var minFontSize = parseInt(options.minFontSize, 10);
-        var div = document.createElement('div');
-        var span = document.createElement('span');
-
-        div.setAttribute('width', containerWidth);
-        div.appendChild(span);
-
-        span.innerHTML = text;
-        span.style.fontSize = fontSize + 'px';
-        span.style.textIndent = '-9999px';
-        span.style.visibility = 'hidden';
-
-        document.body.appendChild(span);
-
-        while (span.offsetWidth > containerWidth && fontSize >= minFontSize) {
-            span.style.fontSize = --fontSize + 'px';
-        }
-
-        document.body.removeChild(span);
-
-        return fontSize + 'px';
-    },
-    webWorkerError: false
+      }
+    });
+    return newObj;
+  },
+  setCSSAttr: (elem, attr, val) => {
+    if (!utils.isElement(elem)) {
+      return;
+    }
+    if (utils.isString(attr) && utils.isString(val)) {
+      elem.style[attr] = val;
+    } else if (utils.isObject(attr)) {
+      utils.each(attr, function (key, val) {
+        elem.style[key] = val;
+      });
+    }
+  },
+  removeElement: node => {
+    if (!utils.isElement(node)) {
+      return;
+    }
+    if (node.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  },
+  createWebWorker: content => {
+    if (!utils.isString(content)) {
+      return {};
+    }
+    try {
+      const blob = new utils.Blob([content], {
+        'type': 'text/javascript'
+      });
+      const objectUrl = utils.URL.createObjectURL(blob);
+      const worker = new Worker(objectUrl);
+      return {
+        'objectUrl': objectUrl,
+        'worker': worker
+      };
+    } catch (e) {
+      return '' + e;
+    }
+  },
+  getExtension: src => {
+    return src.substr(src.lastIndexOf('.') + 1, src.length);
+  },
+  getFontSize: (options = {}) => {
+    if (!document.body || options.resizeFont === false) {
+      return options.fontSize;
+    }
+    let text = options.text;
+    let containerWidth = options.gifWidth;
+    let fontSize = parseInt(options.fontSize, 10);
+    let minFontSize = parseInt(options.minFontSize, 10);
+    const div = document.createElement('div');
+    const span = document.createElement('span');
+    div.setAttribute('width', containerWidth);
+    div.appendChild(span);
+    span.innerHTML = text;
+    span.style.fontSize = fontSize + 'px';
+    span.style.textIndent = '-9999px';
+    span.style.visibility = 'hidden';
+    document.body.appendChild(span);
+    while (span.offsetWidth > containerWidth && fontSize >= minFontSize) {
+      span.style.fontSize = --fontSize + 'px';
+    }
+    document.body.removeChild(span);
+    return fontSize + 'px';
+  },
+  webWorkerError: false
 };
 
-
-
-var utils$2 = Object.freeze({
-	default: utils
+var utils$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: utils
 });
 
 /*
@@ -288,79 +253,66 @@ var utils$2 = Object.freeze({
   ========
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-var error = {
-    validate: function validate(skipObj) {
-        skipObj = utils.isObject(skipObj) ? skipObj : {};
-
-        var errorObj = {};
-
-        utils.each(error.validators, function (indece, currentValidator) {
-            var errorCode = currentValidator.errorCode;
-
-            if (!skipObj[errorCode] && !currentValidator.condition) {
-                errorObj = currentValidator;
-                errorObj.error = true;
-
-                return false;
-            }
-        });
-
-        delete errorObj.condition;
-
-        return errorObj;
-    },
-    isValid: function isValid(skipObj) {
-        var errorObj = error.validate(skipObj);
-        var isValid = errorObj.error !== true ? true : false;
-
-        return isValid;
-    },
-    validators: [{
-        condition: utils.isFunction(utils.getUserMedia),
-        errorCode: 'getUserMedia',
-        errorMsg: 'The getUserMedia API is not supported in your browser'
-    }, {
-        condition: utils.isSupported.canvas(),
-        errorCode: 'canvas',
-        errorMsg: 'Canvas elements are not supported in your browser'
-    }, {
-        condition: utils.isSupported.webworkers(),
-        errorCode: 'webworkers',
-        errorMsg: 'The Web Workers API is not supported in your browser'
-    }, {
-        condition: utils.isFunction(utils.URL),
-        errorCode: 'window.URL',
-        errorMsg: 'The window.URL API is not supported in your browser'
-    }, {
-        condition: utils.isSupported.blob(),
-        errorCode: 'window.Blob',
-        errorMsg: 'The window.Blob File API is not supported in your browser'
-    }, {
-        condition: utils.isSupported.Uint8Array(),
-        errorCode: 'window.Uint8Array',
-        errorMsg: 'The window.Uint8Array function constructor is not supported in your browser'
-    }, {
-        condition: utils.isSupported.Uint32Array(),
-        errorCode: 'window.Uint32Array',
-        errorMsg: 'The window.Uint32Array function constructor is not supported in your browser'
-    }],
-    messages: {
-        videoCodecs: {
-            errorCode: 'videocodec',
-            errorMsg: 'The video codec you are trying to use is not supported in your browser'
-        }
+const error = {
+  validate: skipObj => {
+    skipObj = utils.isObject(skipObj) ? skipObj : {};
+    let errorObj = {};
+    utils.each(error.validators, (indece, currentValidator) => {
+      const errorCode = currentValidator.errorCode;
+      if (!skipObj[errorCode] && !currentValidator.condition) {
+        errorObj = currentValidator;
+        errorObj.error = true;
+        return false;
+      }
+    });
+    delete errorObj.condition;
+    return errorObj;
+  },
+  isValid: skipObj => {
+    const errorObj = error.validate(skipObj);
+    const isValid = errorObj.error !== true ? true : false;
+    return isValid;
+  },
+  validators: [{
+    condition: utils.isFunction(utils.getUserMedia),
+    errorCode: 'getUserMedia',
+    errorMsg: 'The getUserMedia API is not supported in your browser'
+  }, {
+    condition: utils.isSupported.canvas(),
+    errorCode: 'canvas',
+    errorMsg: 'Canvas elements are not supported in your browser'
+  }, {
+    condition: utils.isSupported.webworkers(),
+    errorCode: 'webworkers',
+    errorMsg: 'The Web Workers API is not supported in your browser'
+  }, {
+    condition: utils.isFunction(utils.URL),
+    errorCode: 'window.URL',
+    errorMsg: 'The window.URL API is not supported in your browser'
+  }, {
+    condition: utils.isSupported.blob(),
+    errorCode: 'window.Blob',
+    errorMsg: 'The window.Blob File API is not supported in your browser'
+  }, {
+    condition: utils.isSupported.Uint8Array(),
+    errorCode: 'window.Uint8Array',
+    errorMsg: 'The window.Uint8Array function constructor is not supported in your browser'
+  }, {
+    condition: utils.isSupported.Uint32Array(),
+    errorCode: 'window.Uint32Array',
+    errorMsg: 'The window.Uint32Array function constructor is not supported in your browser'
+  }],
+  messages: {
+    videoCodecs: {
+      errorCode: 'videocodec',
+      errorMsg: 'The video codec you are trying to use is not supported in your browser'
     }
+  }
 };
 
-
-
-var error$2 = Object.freeze({
-	default: error
+var error$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: error
 });
 
 /*
@@ -373,50 +325,48 @@ var error$2 = Object.freeze({
 */
 
 // Helpers
-var noop = function noop() {};
-
-var defaultOptions = {
-    sampleInterval: 10,
-    numWorkers: 2,
-    filter: '',
-    gifWidth: 200,
-    gifHeight: 200,
-    interval: 0.1,
-    numFrames: 10,
-    frameDuration: 1,
-    keepCameraOn: false,
-    images: [],
-    video: null,
-    webcamVideoElement: null,
-    cameraStream: null,
-    text: '',
-    fontWeight: 'normal',
-    fontSize: '16px',
-    minFontSize: '10px',
-    resizeFont: false,
-    fontFamily: 'sans-serif',
-    fontColor: '#ffffff',
-    textAlign: 'center',
-    textBaseline: 'bottom',
-    textXCoordinate: null,
-    textYCoordinate: null,
-    progressCallback: noop,
-    completeCallback: noop,
-    saveRenderingContexts: false,
-    savedRenderingContexts: [],
-    showFrameText: true,
-    crossOrigin: 'Anonymous',
-    waterMark: null,
-    waterMarkHeight: null,
-    waterMarkWidth: null,
-    waterMarkXCoordinate: 1,
-    waterMarkYCoordinate: 1
+const noop$2 = () => {};
+const defaultOptions = {
+  sampleInterval: 10,
+  numWorkers: 2,
+  filter: '',
+  gifWidth: 200,
+  gifHeight: 200,
+  interval: 0.1,
+  numFrames: 10,
+  frameDuration: 1,
+  keepCameraOn: false,
+  images: [],
+  video: null,
+  webcamVideoElement: null,
+  cameraStream: null,
+  text: '',
+  fontWeight: 'normal',
+  fontSize: '16px',
+  minFontSize: '10px',
+  resizeFont: false,
+  fontFamily: 'sans-serif',
+  fontColor: '#ffffff',
+  textAlign: 'center',
+  textBaseline: 'bottom',
+  textXCoordinate: null,
+  textYCoordinate: null,
+  progressCallback: noop$2,
+  completeCallback: noop$2,
+  saveRenderingContexts: false,
+  savedRenderingContexts: [],
+  showFrameText: true,
+  crossOrigin: 'Anonymous',
+  waterMark: null,
+  waterMarkHeight: null,
+  waterMarkWidth: null,
+  waterMarkXCoordinate: 1,
+  waterMarkYCoordinate: 1
 };
 
-
-
-var defaultOptions$2 = Object.freeze({
-	default: defaultOptions
+var defaultOptions$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: defaultOptions
 });
 
 /*
@@ -424,22 +374,13 @@ var defaultOptions$2 = Object.freeze({
   ==============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-function isSupported() {
+function isSupported$1() {
   return error.isValid();
 }
 
 /*
   isWebCamGIFSupported.js
   =======================
-*/
-
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
 */
 
 function isWebCamGIFSupported() {
@@ -451,17 +392,11 @@ function isWebCamGIFSupported() {
   ==============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-function isSupported$1() {
-    var options = {
-        getUserMedia: true
-    };
-
-    return error.isValid(options);
+function isSupported() {
+  const options = {
+    getUserMedia: true
+  };
+  return error.isValid(options);
 }
 
 /*
@@ -469,33 +404,25 @@ function isSupported$1() {
   ==============================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
 function isExistingVideoGIFSupported(codecs) {
-    var hasValidCodec = false;
-
-    if (utils.isArray(codecs) && codecs.length) {
-        utils.each(codecs, function (indece, currentCodec) {
-            if (utils.isSupported.videoCodecs[currentCodec]) {
-                hasValidCodec = true;
-            }
-        });
-
-        if (!hasValidCodec) {
-            return false;
-        }
-    } else if (utils.isString(codecs) && codecs.length) {
-        if (!utils.isSupported.videoCodecs[codecs]) {
-            return false;
-        }
-    }
-
-    return error.isValid({
-        'getUserMedia': true
+  let hasValidCodec = false;
+  if (utils.isArray(codecs) && codecs.length) {
+    utils.each(codecs, function (indece, currentCodec) {
+      if (utils.isSupported.videoCodecs[currentCodec]) {
+        hasValidCodec = true;
+      }
     });
+    if (!hasValidCodec) {
+      return false;
+    }
+  } else if (utils.isString(codecs) && codecs.length) {
+    if (!utils.isSupported.videoCodecs[codecs]) {
+      return false;
+    }
+  }
+  return error.isValid({
+    'getUserMedia': true
+  });
 }
 
 /*
@@ -557,7 +484,6 @@ function NeuQuant() {
   var intbiasshift = 16; // bias for fractions
   var intbias = 1 << intbiasshift;
   var gammashift = 10; // gamma = 1024
-  var gamma = 1 << gammashift;
   var betashift = 10;
   var beta = intbias >> betashift; // beta = 1/1024
   var betagamma = intbias << gammashift - betashift;
@@ -600,18 +526,13 @@ function NeuQuant() {
   // bias and freq arrays for learning
   var freq = [];
   var radpower = [];
-
   function NeuQuantConstructor(thepic, len, sample) {
-
     var i;
     var p;
-
     thepicture = thepic;
     lengthcount = len;
     samplefac = sample;
-
     network = new Array(netsize);
-
     for (i = 0; i < netsize; i++) {
       network[i] = new Array(4);
       p = network[i];
@@ -620,13 +541,11 @@ function NeuQuant() {
       bias[i] = 0;
     }
   }
-
   function colorMap() {
     var map = [];
     var index = new Array(netsize);
-    for (var i = 0; i < netsize; i++) {
-      index[network[i][3]] = i;
-    }var k = 0;
+    for (var i = 0; i < netsize; i++) index[network[i][3]] = i;
+    var k = 0;
     for (var l = 0; l < netsize; l++) {
       var j = index[l];
       map[k++] = network[j][0];
@@ -647,20 +566,15 @@ function NeuQuant() {
     var q;
     var previouscol;
     var startpos;
-
     previouscol = 0;
     startpos = 0;
-
     for (i = 0; i < netsize; i++) {
-
       p = network[i];
       smallpos = i;
       smallval = p[1]; // index on g
       // find smallest in i..netsize-1
       for (j = i + 1; j < netsize; j++) {
-
         q = network[j];
-
         if (q[1] < smallval) {
           // index on g
           smallpos = j;
@@ -688,18 +602,14 @@ function NeuQuant() {
 
       // smallval entry is now in position i
       if (smallval != previouscol) {
-
         netindex[previouscol] = startpos + i >> 1;
-
         for (j = previouscol + 1; j < smallval; j++) {
           netindex[j] = i;
         }
-
         previouscol = smallval;
         startpos = i;
       }
     }
-
     netindex[previouscol] = startpos + maxnetpos >> 1;
     for (j = previouscol + 1; j < 256; j++) {
       netindex[j] = maxnetpos; // really 256
@@ -723,11 +633,9 @@ function NeuQuant() {
     var p;
     var pix;
     var lim;
-
     if (lengthcount < minpicturebytes) {
       samplefac = 1;
     }
-
     alphadec = 30 + (samplefac - 1) / 3;
     p = thepicture;
     pix = 0;
@@ -736,22 +644,18 @@ function NeuQuant() {
     delta = samplepixels / ncycles | 0;
     alpha = initalpha;
     radius = initradius;
-
     rad = radius >> radiusbiasshift;
     if (rad <= 1) {
       rad = 0;
     }
-
     for (i = 0; i < rad; i++) {
       radpower[i] = alpha * ((rad * rad - i * i) * radbias / (rad * rad));
     }
-
     if (lengthcount < minpicturebytes) {
       step = 3;
     } else if (lengthcount % prime1 !== 0) {
       step = 3 * prime1;
     } else {
-
       if (lengthcount % prime2 !== 0) {
         step = 3 * prime2;
       } else {
@@ -762,44 +666,32 @@ function NeuQuant() {
         }
       }
     }
-
     i = 0;
-
     while (i < samplepixels) {
-
       b = (p[pix + 0] & 0xff) << netbiasshift;
       g = (p[pix + 1] & 0xff) << netbiasshift;
       r = (p[pix + 2] & 0xff) << netbiasshift;
       j = contest(b, g, r);
-
       altersingle(alpha, j, b, g, r);
-
       if (rad !== 0) {
         // Alter neighbours
         alterneigh(rad, j, b, g, r);
       }
-
       pix += step;
-
       if (pix >= lim) {
         pix -= lengthcount;
       }
-
       i++;
-
       if (delta === 0) {
         delta = 1;
       }
-
       if (i % delta === 0) {
         alpha -= alpha / alphadec;
         radius -= radius / radiusdec;
         rad = radius >> radiusbiasshift;
-
         if (rad <= 1) {
           rad = 0;
         }
-
         for (j = 0; j < rad; j++) {
           radpower[j] = alpha * ((rad * rad - j * j) * radbias / (rad * rad));
         }
@@ -824,40 +716,28 @@ function NeuQuant() {
     j = i - 1; // start at netindex[g] and work outwards
 
     while (i < netsize || j >= 0) {
-
       if (i < netsize) {
-
         p = network[i];
-
         dist = p[1] - g; // inx key
 
         if (dist >= bestd) {
           i = netsize; // stop iter
         } else {
-
           i++;
-
           if (dist < 0) {
             dist = -dist;
           }
-
           a = p[0] - b;
-
           if (a < 0) {
             a = -a;
           }
-
           dist += a;
-
           if (dist < bestd) {
             a = p[2] - r;
-
             if (a < 0) {
               a = -a;
             }
-
             dist += a;
-
             if (dist < bestd) {
               bestd = dist;
               best = p[3];
@@ -865,17 +745,13 @@ function NeuQuant() {
           }
         }
       }
-
       if (j >= 0) {
-
         p = network[j];
-
         dist = g - p[1]; // inx key - reverse dif
 
         if (dist >= bestd) {
           j = -1; // stop iter
         } else {
-
           j--;
           if (dist < 0) {
             dist = -dist;
@@ -885,7 +761,6 @@ function NeuQuant() {
             a = -a;
           }
           dist += a;
-
           if (dist < bestd) {
             a = p[2] - r;
             if (a < 0) {
@@ -900,10 +775,8 @@ function NeuQuant() {
         }
       }
     }
-
     return best;
   }
-
   function process() {
     learn();
     unbiasnet();
@@ -915,8 +788,6 @@ function NeuQuant() {
   // to prepare for sort
   function unbiasnet() {
     var i;
-    var j;
-
     for (i = 0; i < netsize; i++) {
       network[i][0] >>= netbiasshift;
       network[i][1] >>= netbiasshift;
@@ -928,53 +799,37 @@ function NeuQuant() {
   // Move adjacent neurons by precomputed alpha*(1-((i-j)^2/[r]^2))
   // in radpower[|i-j|]
   function alterneigh(rad, i, b, g, r) {
-
     var j;
     var k;
     var lo;
     var hi;
     var a;
     var m;
-
     var p;
-
     lo = i - rad;
     if (lo < -1) {
       lo = -1;
     }
-
     hi = i + rad;
-
     if (hi > netsize) {
       hi = netsize;
     }
-
     j = i + 1;
     k = i - 1;
     m = 1;
-
     while (j < hi || k > lo) {
-
       a = radpower[m++];
-
       if (j < hi) {
-
         p = network[j++];
-
         try {
-
           p[0] -= a * (p[0] - b) / alpharadbias | 0;
           p[1] -= a * (p[1] - g) / alpharadbias | 0;
           p[2] -= a * (p[2] - r) / alpharadbias | 0;
         } catch (e) {}
       }
-
       if (k > lo) {
-
         p = network[k--];
-
         try {
-
           p[0] -= a * (p[0] - b) / alpharadbias | 0;
           p[1] -= a * (p[1] - g) / alpharadbias | 0;
           p[2] -= a * (p[2] - r) / alpharadbias | 0;
@@ -985,7 +840,6 @@ function NeuQuant() {
 
   // Move neuron i towards biased (b,g,r) by factor alpha
   function altersingle(alpha, i, b, g, r) {
-
     // alter hit neuron
     var n = network[i];
     var alphaMult = alpha / initalpha;
@@ -996,7 +850,6 @@ function NeuQuant() {
 
   // Search for biased BGR values
   function contest(b, g, r) {
-
     // finds closest neuron (min dist) and updates freq
     // finds best neuron (min dist-bias) and returns position
     // for frequently chosen neurons, freq[i] is high and bias[i] is negative
@@ -1012,65 +865,47 @@ function NeuQuant() {
     var bestd;
     var bestbiasd;
     var n;
-
     bestd = ~(1 << 31);
     bestbiasd = bestd;
     bestpos = -1;
     bestbiaspos = bestpos;
-
     for (i = 0; i < netsize; i++) {
-
       n = network[i];
       dist = n[0] - b;
-
       if (dist < 0) {
         dist = -dist;
       }
-
       a = n[1] - g;
-
       if (a < 0) {
         a = -a;
       }
-
       dist += a;
-
       a = n[2] - r;
-
       if (a < 0) {
         a = -a;
       }
-
       dist += a;
-
       if (dist < bestd) {
         bestd = dist;
         bestpos = i;
       }
-
       biasdist = dist - (bias[i] >> intbiasshift - netbiasshift);
-
       if (biasdist < bestbiasd) {
         bestbiasd = biasdist;
         bestbiaspos = i;
       }
-
       betafreq = freq[i] >> betashift;
       freq[i] -= betafreq;
       bias[i] += betafreq << gammashift;
     }
-
     freq[bestpos] += beta;
     bias[bestpos] -= betagamma;
     return bestbiaspos;
   }
-
   NeuQuantConstructor.apply(this, arguments);
-
   var exports = {};
   exports.map = map;
   exports.process = process;
-
   return exports;
 }
 
@@ -1079,94 +914,76 @@ function NeuQuant() {
   =====================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
 function workerCode() {
-    var self = this;
-
-    try {
-        self.onmessage = function (ev) {
-            var data = ev.data || {};
-            var response;
-
-            if (data.gifshot) {
-                response = workerMethods.run(data);
-                postMessage(response);
-            }
-        };
-    } catch (e) {}
-
-    var workerMethods = {
-        dataToRGB: function dataToRGB(data, width, height) {
-            var length = width * height * 4;
-            var i = 0;
-            var rgb = [];
-
-            while (i < length) {
-                rgb.push(data[i++]);
-                rgb.push(data[i++]);
-                rgb.push(data[i++]);
-                i++; // for the alpha channel which we don't care about
-            }
-
-            return rgb;
-        },
-        componentizedPaletteToArray: function componentizedPaletteToArray(paletteRGB) {
-            paletteRGB = paletteRGB || [];
-
-            var paletteArray = [];
-
-            for (var i = 0; i < paletteRGB.length; i += 3) {
-                var r = paletteRGB[i];
-                var g = paletteRGB[i + 1];
-                var b = paletteRGB[i + 2];
-
-                paletteArray.push(r << 16 | g << 8 | b);
-            }
-
-            return paletteArray;
-        },
-        // This is the "traditional" Animated_GIF style of going from RGBA to indexed color frames
-        'processFrameWithQuantizer': function processFrameWithQuantizer(imageData, width, height, sampleInterval) {
-            var rgbComponents = this.dataToRGB(imageData, width, height);
-            var nq = new NeuQuant(rgbComponents, rgbComponents.length, sampleInterval);
-            var paletteRGB = nq.process();
-            var paletteArray = new Uint32Array(this.componentizedPaletteToArray(paletteRGB));
-            var numberPixels = width * height;
-            var indexedPixels = new Uint8Array(numberPixels);
-            var k = 0;
-
-            for (var i = 0; i < numberPixels; i++) {
-                var r = rgbComponents[k++];
-                var g = rgbComponents[k++];
-                var b = rgbComponents[k++];
-
-                indexedPixels[i] = nq.map(r, g, b);
-            }
-
-            return {
-                pixels: indexedPixels,
-                palette: paletteArray
-            };
-        },
-        'run': function run(frame) {
-            frame = frame || {};
-
-            var _frame = frame,
-                height = _frame.height,
-                palette = _frame.palette,
-                sampleInterval = _frame.sampleInterval,
-                width = _frame.width;
-
-            var imageData = frame.data;
-
-            return this.processFrameWithQuantizer(imageData, width, height, sampleInterval);
-        }
+  const self = this;
+  try {
+    self.onmessage = function (ev) {
+      var data = ev.data || {};
+      var response;
+      if (data.gifshot) {
+        response = workerMethods.run(data);
+        postMessage(response);
+      }
     };
+  } catch (e) {}
+  const workerMethods = {
+    dataToRGB: function (data, width, height) {
+      const length = width * height * 4;
+      let i = 0;
+      let rgb = [];
+      while (i < length) {
+        rgb.push(data[i++]);
+        rgb.push(data[i++]);
+        rgb.push(data[i++]);
+        i++; // for the alpha channel which we don't care about
+      }
 
-    return workerMethods;
+      return rgb;
+    },
+    componentizedPaletteToArray: function (paletteRGB) {
+      paletteRGB = paletteRGB || [];
+      let paletteArray = [];
+      for (let i = 0; i < paletteRGB.length; i += 3) {
+        let r = paletteRGB[i];
+        let g = paletteRGB[i + 1];
+        let b = paletteRGB[i + 2];
+        paletteArray.push(r << 16 | g << 8 | b);
+      }
+      return paletteArray;
+    },
+    // This is the "traditional" Animated_GIF style of going from RGBA to indexed color frames
+    'processFrameWithQuantizer': function (imageData, width, height, sampleInterval) {
+      let rgbComponents = this.dataToRGB(imageData, width, height);
+      let nq = new NeuQuant(rgbComponents, rgbComponents.length, sampleInterval);
+      let paletteRGB = nq.process();
+      let paletteArray = new Uint32Array(this.componentizedPaletteToArray(paletteRGB));
+      let numberPixels = width * height;
+      let indexedPixels = new Uint8Array(numberPixels);
+      let k = 0;
+      for (let i = 0; i < numberPixels; i++) {
+        let r = rgbComponents[k++];
+        let g = rgbComponents[k++];
+        let b = rgbComponents[k++];
+        indexedPixels[i] = nq.map(r, g, b);
+      }
+      return {
+        pixels: indexedPixels,
+        palette: paletteArray
+      };
+    },
+    'run': function (frame) {
+      frame = frame || {};
+      let {
+        height,
+        palette,
+        sampleInterval,
+        width
+      } = frame;
+      const imageData = frame.data;
+      return this.processFrameWithQuantizer(imageData, width, height, sampleInterval);
+    }
+  };
+  return workerMethods;
 }
 
 /*
@@ -1202,16 +1019,12 @@ function workerCode() {
 
 function gifWriter(buf, width, height, gopts) {
   var p = 0;
-
   gopts = gopts === undefined ? {} : gopts;
   var loop_count = gopts.loop === undefined ? null : gopts.loop;
   var global_palette = gopts.palette === undefined ? null : gopts.palette;
-
   if (width <= 0 || height <= 0 || width > 65535 || height > 65535) throw "Width/Height invalid.";
-
   function check_palette_and_num_colors(palette) {
     var num_colors = palette.length;
-
     if (num_colors < 2 || num_colors > 256 || num_colors & num_colors - 1) throw "Invalid code/color length, must be power of 2 and 2 .. 256.";
     return num_colors;
   }
@@ -1235,7 +1048,8 @@ function gifWriter(buf, width, height, gopts) {
   buf[p++] = height & 0xff;
   buf[p++] = height >> 8 & 0xff;
   // NOTE: Indicates 0-bpp original color resolution (unused?).
-  buf[p++] = (global_palette !== null ? 0x80 : 0) | // Global Color Table Flag.
+  buf[p++] = (global_palette !== null ? 0x80 : 0) |
+  // Global Color Table Flag.
   gp_num_colors_pow2; // NOTE: No sort flag (unused?).
   buf[p++] = background; // Background Color Index.
   buf[p++] = 0; // Pixel aspect ratio (unused?).
@@ -1269,7 +1083,6 @@ function gifWriter(buf, width, height, gopts) {
   }
 
   var ended = false;
-
   this.addFrame = function (x, y, w, h, indexed_pixels, opts) {
     if (ended === true) {
       --p;
@@ -1281,27 +1094,21 @@ function gifWriter(buf, width, height, gopts) {
     // TODO(deanm): Bounds check x, y.  Do they need to be within the virtual
     // canvas width/height, I imagine?
     if (x < 0 || y < 0 || x > 65535 || y > 65535) throw "x/y invalid.";
-
     if (w <= 0 || h <= 0 || w > 65535 || h > 65535) throw "Width/Height invalid.";
-
     if (indexed_pixels.length < w * h) throw "Not enough pixels for the frame size.";
-
     var using_local_palette = true;
     var palette = opts.palette;
     if (palette === undefined || palette === null) {
       using_local_palette = false;
       palette = global_palette;
     }
-
     if (palette === undefined || palette === null) throw "Must supply either a local or global palette.";
-
     var num_colors = check_palette_and_num_colors(palette);
 
     // Compute the min_code_size (power of 2), destroying num_colors.
     var min_code_size = 0;
-    while (num_colors >>= 1) {
-      ++min_code_size;
-    }num_colors = 1 << min_code_size; // Now we can easily get it back.
+    while (num_colors >>= 1) ++min_code_size;
+    num_colors = 1 << min_code_size; // Now we can easily get it back.
 
     var delay = opts.delay === undefined ? 0 : opts.delay;
 
@@ -1319,9 +1126,9 @@ function gifWriter(buf, width, height, gopts) {
     // NOTE(deanm): Dispose background doesn't really work, apparently most
     // browsers ignore the background palette index and clear to transparency.
     var disposal = opts.disposal === undefined ? 0 : opts.disposal;
-    if (disposal < 0 || disposal > 3) // 4-7 is reserved.
+    if (disposal < 0 || disposal > 3)
+      // 4-7 is reserved.
       throw "Disposal out of range.";
-
     var use_transparency = false;
     var transparent_index = 0;
     if (opts.transparent !== undefined && opts.transparent !== null) {
@@ -1329,7 +1136,6 @@ function gifWriter(buf, width, height, gopts) {
       transparent_index = opts.transparent;
       if (transparent_index < 0 || transparent_index >= num_colors) throw "Transparent color index.";
     }
-
     if (disposal !== 0 || use_transparency || delay !== 0) {
       // - Graphics Control Extension
       buf[p++] = 0x21;
@@ -1366,10 +1172,8 @@ function gifWriter(buf, width, height, gopts) {
         buf[p++] = rgb & 0xff;
       }
     }
-
     p = GifWriterOutputLZWCodeStream(buf, p, min_code_size < 2 ? 2 : min_code_size, indexed_pixels);
   };
-
   this.end = function () {
     if (ended === false) {
       buf[p++] = 0x3b; // Trailer.
@@ -1388,13 +1192,11 @@ function gifWriter(buf, width, height, gopts) {
     var code_mask = clear_code - 1;
     var eoi_code = clear_code + 1;
     var next_code = eoi_code + 1;
-
     var cur_code_size = min_code_size + 1; // Number of bits per code.
     var cur_shift = 0;
     // We have at most 12-bit codes, so we should have to hold a max of 19
     // bits here (and then we would write out).
     var cur = 0;
-
     function emit_bytes_to_buffer(bit_block_size) {
       while (cur_shift >= bit_block_size) {
         buf[p++] = cur & 0xff;
@@ -1407,7 +1209,6 @@ function gifWriter(buf, width, height, gopts) {
         }
       }
     }
-
     function emit_code(c) {
       cur |= c << cur_shift;
       cur_shift += cur_code_size;
@@ -1486,7 +1287,6 @@ function gifWriter(buf, width, height, gopts) {
             cur_subblock = p++;
           }
         }
-
         if (next_code === 4096) {
           // Table full, need a clear.
           emit_code(clear_code);
@@ -1536,365 +1336,323 @@ function gifWriter(buf, width, height, gopts) {
   ==============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
 
-// Dependencies
 // Helpers
-var noop$2 = function noop() {};
+const noop$1 = () => {};
+const AnimatedGIF = function (options) {
+  this.canvas = null;
+  this.ctx = null;
+  this.repeat = 0;
+  this.frames = [];
+  this.numRenderedFrames = 0;
+  this.onRenderCompleteCallback = noop$1;
+  this.onRenderProgressCallback = noop$1;
+  this.workers = [];
+  this.availableWorkers = [];
+  this.generatingGIF = false;
+  this.options = options;
 
-var AnimatedGIF = function AnimatedGIF(options) {
-    this.canvas = null;
-    this.ctx = null;
-    this.repeat = 0;
-    this.frames = [];
-    this.numRenderedFrames = 0;
-    this.onRenderCompleteCallback = noop$2;
-    this.onRenderProgressCallback = noop$2;
-    this.workers = [];
-    this.availableWorkers = [];
-    this.generatingGIF = false;
-    this.options = options;
-
-    // Constructs and initializes the the web workers appropriately
-    this.initializeWebWorkers(options);
+  // Constructs and initializes the the web workers appropriately
+  this.initializeWebWorkers(options);
 };
-
 AnimatedGIF.prototype = {
-    'workerMethods': workerCode(),
-    'initializeWebWorkers': function initializeWebWorkers(options) {
-        var self = this;
-        var processFrameWorkerCode = NeuQuant.toString() + '(' + workerCode.toString() + '());';
-        var webWorkerObj = void 0;
-        var objectUrl = void 0;
-        var webWorker = void 0;
-        var numWorkers = void 0;
-        var x = -1;
-        var workerError = '';
-
-        numWorkers = options.numWorkers;
-
-        while (++x < numWorkers) {
-            webWorkerObj = utils.createWebWorker(processFrameWorkerCode);
-
-            if (utils.isObject(webWorkerObj)) {
-                objectUrl = webWorkerObj.objectUrl;
-                webWorker = webWorkerObj.worker;
-
-                self.workers.push({
-                    worker: webWorker,
-                    objectUrl: objectUrl
-                });
-
-                self.availableWorkers.push(webWorker);
-            } else {
-                workerError = webWorkerObj;
-                utils.webWorkerError = !!webWorkerObj;
-            }
-        }
-
-        this.workerError = workerError;
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = options.gifWidth;
-        this.canvas.height = options.gifHeight;
-        this.ctx = this.canvas.getContext('2d');
-        this.frames = [];
-    },
-    // Return a worker for processing a frame
-    getWorker: function getWorker() {
-        return this.availableWorkers.pop();
-    },
-    // Restores a worker to the pool
-    freeWorker: function freeWorker(worker) {
-        this.availableWorkers.push(worker);
-    },
-    byteMap: function () {
-        var byteMap = [];
-
-        for (var i = 0; i < 256; i++) {
-            byteMap[i] = String.fromCharCode(i);
-        }
-
-        return byteMap;
-    }(),
-    bufferToString: function bufferToString(buffer) {
-        var numberValues = buffer.length;
-        var str = '';
-        var x = -1;
-
-        while (++x < numberValues) {
-            str += this.byteMap[buffer[x]];
-        }
-
-        return str;
-    },
-    onFrameFinished: function onFrameFinished(progressCallback) {
-        // The GIF is not written until we're done with all the frames
-        // because they might not be processed in the same order
-        var self = this;
-        var frames = self.frames;
-        var options = self.options;
-        var hasExistingImages = !!(options.images || []).length;
-        var allDone = frames.every(function (frame) {
-            return !frame.beingProcessed && frame.done;
+  'workerMethods': workerCode(),
+  'initializeWebWorkers': function (options) {
+    const self = this;
+    const processFrameWorkerCode = NeuQuant.toString() + '(' + workerCode.toString() + '());';
+    let webWorkerObj;
+    let objectUrl;
+    let webWorker;
+    let numWorkers;
+    let x = -1;
+    let workerError = '';
+    numWorkers = options.numWorkers;
+    while (++x < numWorkers) {
+      webWorkerObj = utils.createWebWorker(processFrameWorkerCode);
+      if (utils.isObject(webWorkerObj)) {
+        objectUrl = webWorkerObj.objectUrl;
+        webWorker = webWorkerObj.worker;
+        self.workers.push({
+          worker: webWorker,
+          objectUrl: objectUrl
         });
-
-        self.numRenderedFrames++;
-
-        if (hasExistingImages) {
-            progressCallback(self.numRenderedFrames / frames.length);
-        }
-
-        self.onRenderProgressCallback(self.numRenderedFrames * 0.75 / frames.length);
-
-        if (allDone) {
-            if (!self.generatingGIF) {
-                self.generateGIF(frames, self.onRenderCompleteCallback);
-            }
-        } else {
-            utils.requestTimeout(function () {
-                self.processNextFrame();
-            }, 1);
-        }
-    },
-    processFrame: function processFrame(position) {
-        var AnimatedGifContext = this;
-        var options = this.options;
-        var _options = this.options,
-            progressCallback = _options.progressCallback,
-            sampleInterval = _options.sampleInterval;
-
-        var frames = this.frames;
-        var frame = void 0;
-        var worker = void 0;
-        var done = function done() {
-            var ev = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-            var data = ev.data;
-
-            // Delete original data, and free memory
-            delete frame.data;
-
-            frame.pixels = Array.prototype.slice.call(data.pixels);
-            frame.palette = Array.prototype.slice.call(data.palette);
-            frame.done = true;
-            frame.beingProcessed = false;
-
-            AnimatedGifContext.freeWorker(worker);
-
-            AnimatedGifContext.onFrameFinished(progressCallback);
-        };
-
-        frame = frames[position];
-
-        if (frame.beingProcessed || frame.done) {
-            this.onFrameFinished();
-
-            return;
-        }
-
-        frame.sampleInterval = sampleInterval;
-        frame.beingProcessed = true;
-        frame.gifshot = true;
-
-        worker = this.getWorker();
-
-        if (worker) {
-            // Process the frame in a web worker
-            worker.onmessage = done;
-            worker.postMessage(frame);
-        } else {
-            // Process the frame in the current thread
-            done({
-                'data': AnimatedGifContext.workerMethods.run(frame)
-            });
-        }
-    },
-    startRendering: function startRendering(completeCallback) {
-        this.onRenderCompleteCallback = completeCallback;
-
-        for (var i = 0; i < this.options.numWorkers && i < this.frames.length; i++) {
-            this.processFrame(i);
-        }
-    },
-    processNextFrame: function processNextFrame() {
-        var position = -1;
-
-        for (var i = 0; i < this.frames.length; i++) {
-            var frame = this.frames[i];
-
-            if (!frame.done && !frame.beingProcessed) {
-                position = i;
-                break;
-            }
-        }
-
-        if (position >= 0) {
-            this.processFrame(position);
-        }
-    },
-    // Takes the already processed data in frames and feeds it to a new
-    // GifWriter instance in order to get the binary GIF file
-    generateGIF: function generateGIF(frames, callback) {
-        // TODO: Weird: using a simple JS array instead of a typed array,
-        // the files are WAY smaller o_o. Patches/explanations welcome!
-        var buffer = []; // new Uint8Array(width * height * frames.length * 5);
-        var gifOptions = {
-            loop: this.repeat
-        };
-        var options = this.options;
-        var interval = options.interval;
-
-        var frameDuration = options.frameDuration;
-        var existingImages = options.images;
-        var hasExistingImages = !!existingImages.length;
-        var height = options.gifHeight;
-        var width = options.gifWidth;
-        var gifWriter$$1 = new gifWriter(buffer, width, height, gifOptions);
-        var onRenderProgressCallback = this.onRenderProgressCallback;
-        var delay = hasExistingImages ? interval * 100 : 0;
-        var bufferToString = void 0;
-        var gif = void 0;
-
-        this.generatingGIF = true;
-
-        utils.each(frames, function (iterator, frame) {
-            var framePalette = frame.palette;
-
-            onRenderProgressCallback(0.75 + 0.25 * frame.position * 1.0 / frames.length);
-
-            for (var i = 0; i < frameDuration; i++) {
-                gifWriter$$1.addFrame(0, 0, width, height, frame.pixels, {
-                    palette: framePalette,
-                    delay: delay
-                });
-            }
-        });
-
-        gifWriter$$1.end();
-
-        onRenderProgressCallback(1.0);
-
-        this.frames = [];
-
-        this.generatingGIF = false;
-
-        if (utils.isFunction(callback)) {
-            bufferToString = this.bufferToString(buffer);
-            gif = 'data:image/gif;base64,' + utils.btoa(bufferToString);
-
-            callback(gif);
-        }
-    },
-    // From GIF: 0 = loop forever, null = not looping, n > 0 = loop n times and stop
-    setRepeat: function setRepeat(r) {
-        this.repeat = r;
-    },
-    addFrame: function addFrame(element, gifshotOptions, frameText) {
-        gifshotOptions = utils.isObject(gifshotOptions) ? gifshotOptions : {};
-
-        var self = this;
-        var ctx = self.ctx;
-        var options = self.options;
-        var width = options.gifWidth;
-        var height = options.gifHeight;
-        var fontSize = utils.getFontSize(gifshotOptions);
-        var _gifshotOptions = gifshotOptions,
-            filter = _gifshotOptions.filter,
-            fontColor = _gifshotOptions.fontColor,
-            fontFamily = _gifshotOptions.fontFamily,
-            fontWeight = _gifshotOptions.fontWeight,
-            gifHeight = _gifshotOptions.gifHeight,
-            gifWidth = _gifshotOptions.gifWidth,
-            text = _gifshotOptions.text,
-            textAlign = _gifshotOptions.textAlign,
-            textBaseline = _gifshotOptions.textBaseline,
-            waterMark = _gifshotOptions.waterMark,
-            waterMarkHeight = _gifshotOptions.waterMarkHeight,
-            waterMarkWidth = _gifshotOptions.waterMarkWidth,
-            waterMarkXCoordinate = _gifshotOptions.waterMarkXCoordinate,
-            waterMarkYCoordinate = _gifshotOptions.waterMarkYCoordinate;
-
-        var textXCoordinate = gifshotOptions.textXCoordinate ? gifshotOptions.textXCoordinate : textAlign === 'left' ? 1 : textAlign === 'right' ? width : width / 2;
-        var textYCoordinate = gifshotOptions.textYCoordinate ? gifshotOptions.textYCoordinate : textBaseline === 'top' ? 1 : textBaseline === 'center' ? height / 2 : height;
-        var font = fontWeight + ' ' + fontSize + ' ' + fontFamily;
-        var textToUse = frameText && gifshotOptions.showFrameText ? frameText : text;
-        var imageData = void 0;
-
-        try {
-            ctx.filter = filter;
-
-            ctx.drawImage(element, 0, 0, width, height);
-
-            if (textToUse) {
-                ctx.font = font;
-                ctx.fillStyle = fontColor;
-                ctx.textAlign = textAlign;
-                ctx.textBaseline = textBaseline;
-                ctx.fillText(textToUse, textXCoordinate, textYCoordinate);
-            }
-            if (waterMark) {
-                ctx.drawImage(waterMark, waterMarkXCoordinate, waterMarkYCoordinate, waterMarkWidth, waterMarkHeight);
-            }
-            imageData = ctx.getImageData(0, 0, width, height);
-
-            self.addFrameImageData(imageData);
-        } catch (e) {
-            return '' + e;
-        }
-    },
-    addFrameImageData: function addFrameImageData() {
-        var imageData = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-        var frames = this.frames;
-        var imageDataArray = imageData.data;
-
-        this.frames.push({
-            'data': imageDataArray,
-            'width': imageData.width,
-            'height': imageData.height,
-            'palette': null,
-            'dithering': null,
-            'done': false,
-            'beingProcessed': false,
-            'position': frames.length
-        });
-    },
-    onRenderProgress: function onRenderProgress(callback) {
-        this.onRenderProgressCallback = callback;
-    },
-    isRendering: function isRendering() {
-        return this.generatingGIF;
-    },
-    getBase64GIF: function getBase64GIF(completeCallback) {
-        var self = this;
-        var onRenderComplete = function onRenderComplete(gif) {
-            self.destroyWorkers();
-
-            utils.requestTimeout(function () {
-                completeCallback(gif);
-            }, 0);
-        };
-
-        self.startRendering(onRenderComplete);
-    },
-    destroyWorkers: function destroyWorkers() {
-        if (this.workerError) {
-            return;
-        }
-
-        var workers = this.workers;
-
-        // Explicitly ask web workers to die so they are explicitly GC'ed
-        utils.each(workers, function (iterator, workerObj) {
-            var worker = workerObj.worker;
-            var objectUrl = workerObj.objectUrl;
-
-            worker.terminate();
-            utils.URL.revokeObjectURL(objectUrl);
-        });
+        self.availableWorkers.push(webWorker);
+      } else {
+        workerError = webWorkerObj;
+        utils.webWorkerError = !!webWorkerObj;
+      }
     }
+    this.workerError = workerError;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = options.gifWidth;
+    this.canvas.height = options.gifHeight;
+    this.ctx = this.canvas.getContext('2d');
+    this.frames = [];
+  },
+  // Return a worker for processing a frame
+  getWorker: function () {
+    return this.availableWorkers.pop();
+  },
+  // Restores a worker to the pool
+  freeWorker: function (worker) {
+    this.availableWorkers.push(worker);
+  },
+  byteMap: (() => {
+    let byteMap = [];
+    for (let i = 0; i < 256; i++) {
+      byteMap[i] = String.fromCharCode(i);
+    }
+    return byteMap;
+  })(),
+  bufferToString: function (buffer) {
+    const numberValues = buffer.length;
+    let str = '';
+    let x = -1;
+    while (++x < numberValues) {
+      str += this.byteMap[buffer[x]];
+    }
+    return str;
+  },
+  onFrameFinished: function (progressCallback) {
+    // The GIF is not written until we're done with all the frames
+    // because they might not be processed in the same order
+    const self = this;
+    const frames = self.frames;
+    const options = self.options;
+    const hasExistingImages = !!(options.images || []).length;
+    const allDone = frames.every(frame => {
+      return !frame.beingProcessed && frame.done;
+    });
+    self.numRenderedFrames++;
+    if (hasExistingImages) {
+      progressCallback(self.numRenderedFrames / frames.length);
+    }
+    self.onRenderProgressCallback(self.numRenderedFrames * 0.75 / frames.length);
+    if (allDone) {
+      if (!self.generatingGIF) {
+        self.generateGIF(frames, self.onRenderCompleteCallback);
+      }
+    } else {
+      utils.requestTimeout(function () {
+        self.processNextFrame();
+      }, 1);
+    }
+  },
+  processFrame: function (position) {
+    const AnimatedGifContext = this;
+    this.options;
+    const {
+      progressCallback,
+      sampleInterval
+    } = this.options;
+    const frames = this.frames;
+    let frame;
+    let worker;
+    const done = (ev = {}) => {
+      const data = ev.data;
+
+      // Delete original data, and free memory
+      delete frame.data;
+      frame.pixels = Array.prototype.slice.call(data.pixels);
+      frame.palette = Array.prototype.slice.call(data.palette);
+      frame.done = true;
+      frame.beingProcessed = false;
+      AnimatedGifContext.freeWorker(worker);
+      AnimatedGifContext.onFrameFinished(progressCallback);
+    };
+    frame = frames[position];
+    if (frame.beingProcessed || frame.done) {
+      this.onFrameFinished();
+      return;
+    }
+    frame.sampleInterval = sampleInterval;
+    frame.beingProcessed = true;
+    frame.gifshot = true;
+    worker = this.getWorker();
+    if (worker) {
+      // Process the frame in a web worker
+      worker.onmessage = done;
+      worker.postMessage(frame);
+    } else {
+      // Process the frame in the current thread
+      done({
+        'data': AnimatedGifContext.workerMethods.run(frame)
+      });
+    }
+  },
+  startRendering: function (completeCallback) {
+    this.onRenderCompleteCallback = completeCallback;
+    for (let i = 0; i < this.options.numWorkers && i < this.frames.length; i++) {
+      this.processFrame(i);
+    }
+  },
+  processNextFrame: function () {
+    let position = -1;
+    for (let i = 0; i < this.frames.length; i++) {
+      const frame = this.frames[i];
+      if (!frame.done && !frame.beingProcessed) {
+        position = i;
+        break;
+      }
+    }
+    if (position >= 0) {
+      this.processFrame(position);
+    }
+  },
+  // Takes the already processed data in frames and feeds it to a new
+  // GifWriter instance in order to get the binary GIF file
+  generateGIF: function (frames, callback) {
+    // TODO: Weird: using a simple JS array instead of a typed array,
+    // the files are WAY smaller o_o. Patches/explanations welcome!
+    let buffer = []; // new Uint8Array(width * height * frames.length * 5);
+    let gifOptions = {
+      loop: this.repeat
+    };
+    const options = this.options;
+    const {
+      interval
+    } = options;
+    const frameDuration = options.frameDuration;
+    const existingImages = options.images;
+    const hasExistingImages = !!existingImages.length;
+    const height = options.gifHeight;
+    const width = options.gifWidth;
+    const gifWriter$1 = new gifWriter(buffer, width, height, gifOptions);
+    const onRenderProgressCallback = this.onRenderProgressCallback;
+    const delay = hasExistingImages ? interval * 100 : 0;
+    let bufferToString;
+    let gif;
+    this.generatingGIF = true;
+    utils.each(frames, (iterator, frame) => {
+      const framePalette = frame.palette;
+      onRenderProgressCallback(0.75 + 0.25 * frame.position * 1.0 / frames.length);
+      for (let i = 0; i < frameDuration; i++) {
+        //Override our interval delay if we have them set in our image objects
+        let frameDelay = hasExistingImages && existingImages[frame.position].hasOwnProperty('interval') ? existingImages[frame.position].interval * 100 : delay;
+        gifWriter$$1.addFrame(0, 0, width, height, frame.pixels, {
+          palette: framePalette,
+          delay: frameDelay
+        });
+      }
+    });
+    gifWriter$1.end();
+    onRenderProgressCallback(1.0);
+    this.frames = [];
+    this.generatingGIF = false;
+    if (utils.isFunction(callback)) {
+      bufferToString = this.bufferToString(buffer);
+      gif = 'data:image/gif;base64,' + utils.btoa(bufferToString);
+      callback(gif);
+    }
+  },
+  // From GIF: 0 = loop forever, null = not looping, n > 0 = loop n times and stop
+  setRepeat: function (r) {
+    this.repeat = r;
+  },
+  addFrame: function (element, gifshotOptions, frameText) {
+    gifshotOptions = utils.isObject(gifshotOptions) ? gifshotOptions : {};
+    const self = this;
+    const ctx = self.ctx;
+    const options = self.options;
+    const width = options.gifWidth;
+    const height = options.gifHeight;
+    const fontSize = utils.getFontSize(gifshotOptions);
+    const {
+      filter,
+      fontColor,
+      fontFamily,
+      fontWeight,
+      gifHeight,
+      gifWidth,
+      text,
+      textAlign,
+      textBaseline,
+      waterMark,
+      waterMarkHeight,
+      waterMarkWidth,
+      waterMarkXCoordinate,
+      waterMarkYCoordinate
+    } = gifshotOptions;
+    const textXCoordinate = gifshotOptions.textXCoordinate ? gifshotOptions.textXCoordinate : textAlign === 'left' ? 1 : textAlign === 'right' ? width : width / 2;
+    const textYCoordinate = gifshotOptions.textYCoordinate ? gifshotOptions.textYCoordinate : textBaseline === 'top' ? 1 : textBaseline === 'center' ? height / 2 : height;
+    const font = fontWeight + ' ' + fontSize + ' ' + fontFamily;
+    const textToUse = frameText && gifshotOptions.showFrameText ? frameText : text;
+    let imageData;
+    try {
+      ctx.filter = filter;
+      ctx.drawImage(element, 0, 0, width, height);
+      if (textToUse) {
+        ctx.font = font;
+        ctx.fillStyle = fontColor;
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = textBaseline;
+        var returnChar = ['\n', '\t', '<br/>', '<br>', '<hr>'];
+        var spliter = returnChar.find(char => textToUse.includes(char));
+        if (spliter) {
+          var lines = textToUse.split(spliter);
+        }
+        var textHeight = Number(fontSize.replace("px", ""));
+        var fullTextHeight = (textHeight + 16) * lines.length;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, height, width, -fullTextHeight);
+        ctx.fillStyle = fontColor;
+        for (var i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], textXCoordinate, textYCoordinate - (i * textHeight + 16));
+        }
+      }
+      if (waterMark) {
+        ctx.drawImage(waterMark, waterMarkXCoordinate, waterMarkYCoordinate, waterMarkWidth, waterMarkHeight);
+      }
+      imageData = ctx.getImageData(0, 0, width, height);
+      self.addFrameImageData(imageData);
+    } catch (e) {
+      return '' + e;
+    }
+  },
+  addFrameImageData: function (imageData = {}) {
+    const frames = this.frames;
+    const imageDataArray = imageData.data;
+    this.frames.push({
+      'data': imageDataArray,
+      'width': imageData.width,
+      'height': imageData.height,
+      'palette': null,
+      'dithering': null,
+      'done': false,
+      'beingProcessed': false,
+      'position': frames.length
+    });
+  },
+  onRenderProgress: function (callback) {
+    this.onRenderProgressCallback = callback;
+  },
+  isRendering: function () {
+    return this.generatingGIF;
+  },
+  getBase64GIF: function (completeCallback) {
+    const self = this;
+    const onRenderComplete = gif => {
+      self.destroyWorkers();
+      utils.requestTimeout(() => {
+        completeCallback(gif);
+      }, 0);
+    };
+    self.startRendering(onRenderComplete);
+  },
+  destroyWorkers: function () {
+    if (this.workerError) {
+      return;
+    }
+    const workers = this.workers;
+
+    // Explicitly ask web workers to die so they are explicitly GC'ed
+    utils.each(workers, (iterator, workerObj) => {
+      const worker = workerObj.worker;
+      const objectUrl = workerObj.objectUrl;
+      worker.terminate();
+      utils.URL.revokeObjectURL(objectUrl);
+    });
+  }
 };
 
 /*
@@ -1907,15 +1665,15 @@ AnimatedGIF.prototype = {
 */
 
 function getBase64GIF(animatedGifInstance, callback) {
-    // This is asynchronous, rendered with WebWorkers
-    animatedGifInstance.getBase64GIF(function (image) {
-        callback({
-            error: false,
-            errorCode: '',
-            errorMsg: '',
-            image: image
-        });
+  // This is asynchronous, rendered with WebWorkers
+  animatedGifInstance.getBase64GIF(image => {
+    callback({
+      error: false,
+      errorCode: '',
+      errorMsg: '',
+      image: image
     });
+  });
 }
 
 /*
@@ -1923,122 +1681,97 @@ function getBase64GIF(animatedGifInstance, callback) {
   =================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
+function existingImages(obj = {}) {
+  const {
+    callback,
+    images,
+    options
+  } = obj;
+  let imagesLength = obj.imagesLength;
+  const skipObj = {
+    'getUserMedia': true,
+    'window.URL': true
+  };
+  const errorObj = error.validate(skipObj);
+  let loadedImages = [];
+  let loadedImagesLength = 0;
+  let tempImage;
+  let ag;
+  if (errorObj.error) {
+    return callback(errorObj);
+  }
 
-function existingImages() {
-    var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-    var self = this;
-    var callback = obj.callback,
-        images = obj.images,
-        options = obj.options;
-
-    var imagesLength = obj.imagesLength;
-    var skipObj = {
-        'getUserMedia': true,
-        'window.URL': true
-    };
-    var errorObj = error.validate(skipObj);
-    var loadedImages = [];
-    var loadedImagesLength = 0;
-    var tempImage = void 0;
-    var ag = void 0;
-
-    if (errorObj.error) {
-        return callback(errorObj);
+  // change workerPath to point to where Animated_GIF.worker.js is
+  ag = new AnimatedGIF(options);
+  utils.each(images, function (index, image) {
+    let currentImage = image;
+    if (image.src) {
+      currentImage = currentImage.src;
     }
-
-    // change workerPath to point to where Animated_GIF.worker.js is
-    ag = new AnimatedGIF(options);
-
-    utils.each(images, function (index, image) {
-        var currentImage = image;
-
-        if (image.src) {
-            currentImage = currentImage.src;
+    if (utils.isElement(currentImage)) {
+      if (options.crossOrigin) {
+        currentImage.crossOrigin = options.crossOrigin;
+      }
+      loadedImages[index] = currentImage;
+      loadedImagesLength += 1;
+      if (loadedImagesLength === imagesLength) {
+        addLoadedImagesToGif();
+      }
+    } else if (utils.isString(currentImage)) {
+      tempImage = new Image();
+      if (options.crossOrigin) {
+        tempImage.crossOrigin = options.crossOrigin;
+      }
+      (function (tempImage) {
+        if (image.text) {
+          tempImage.text = image.text;
         }
-        if (utils.isElement(currentImage)) {
-            if (options.crossOrigin) {
-                currentImage.crossOrigin = options.crossOrigin;
-            }
+        tempImage.onerror = function (e) {
+          let obj;
+          --imagesLength; // skips over images that error out
 
-            loadedImages[index] = currentImage;
-            loadedImagesLength += 1;
-
-            if (loadedImagesLength === imagesLength) {
-                addLoadedImagesToGif();
-            }
-        } else if (utils.isString(currentImage)) {
-            tempImage = new Image();
-
-            if (options.crossOrigin) {
-                tempImage.crossOrigin = options.crossOrigin;
-            }
-
-            (function (tempImage) {
-                if (image.text) {
-                    tempImage.text = image.text;
-                }
-
-                tempImage.onerror = function (e) {
-                    var obj = void 0;
-
-                    --imagesLength; // skips over images that error out
-
-                    if (imagesLength === 0) {
-                        obj = {};
-                        obj.error = 'None of the requested images was capable of being retrieved';
-
-                        return callback(obj);
-                    }
-                };
-
-                tempImage.onload = function (e) {
-                    if (image.text) {
-                        loadedImages[index] = {
-                            img: tempImage,
-                            text: tempImage.text
-                        };
-                    } else {
-                        loadedImages[index] = tempImage;
-                    }
-
-                    loadedImagesLength += 1;
-
-                    if (loadedImagesLength === imagesLength) {
-                        addLoadedImagesToGif();
-                    }
-
-                    utils.removeElement(tempImage);
-                };
-
-                tempImage.src = currentImage;
-            })(tempImage);
-
-            utils.setCSSAttr(tempImage, {
-                position: 'fixed',
-                opacity: '0'
-            });
-
-            document.body.appendChild(tempImage);
+          if (imagesLength === 0) {
+            obj = {};
+            obj.error = 'None of the requested images was capable of being retrieved';
+            return callback(obj);
+          }
+        };
+        tempImage.onload = function (e) {
+          if (image.text) {
+            loadedImages[index] = {
+              img: tempImage,
+              text: tempImage.text
+            };
+          } else {
+            loadedImages[index] = tempImage;
+          }
+          loadedImagesLength += 1;
+          if (loadedImagesLength === imagesLength) {
+            addLoadedImagesToGif();
+          }
+          utils.removeElement(tempImage);
+        };
+        tempImage.src = currentImage;
+      })(tempImage);
+      utils.setCSSAttr(tempImage, {
+        position: 'fixed',
+        opacity: '0'
+      });
+      document.body.appendChild(tempImage);
+    }
+  });
+  function addLoadedImagesToGif() {
+    utils.each(loadedImages, function (index, loadedImage) {
+      if (loadedImage) {
+        if (loadedImage.text) {
+          ag.addFrame(loadedImage.img, options, loadedImage.text);
+        } else {
+          ag.addFrame(loadedImage, options);
         }
+      }
     });
-
-    function addLoadedImagesToGif() {
-        utils.each(loadedImages, function (index, loadedImage) {
-            if (loadedImage) {
-                if (loadedImage.text) {
-                    ag.addFrame(loadedImage.img, options, loadedImage.text);
-                } else {
-                    ag.addFrame(loadedImage, options);
-                }
-            }
-        });
-
-        getBase64GIF(ag, callback);
-    }
+    getBase64GIF(ag, callback);
+  }
 }
 
 /*
@@ -2046,204 +1779,172 @@ function existingImages() {
   =============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
 
-// Dependencies
 // Helpers
-var noop$3 = function noop() {};
-
-var screenShot = {
-    getGIF: function getGIF() {
-        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-        var callback = arguments[1];
-
-        callback = utils.isFunction(callback) ? callback : noop$3;
-
-        var canvas = document.createElement('canvas');
-        var context = void 0;
-        var existingImages = options.images;
-        var hasExistingImages = !!existingImages.length;
-        var cameraStream = options.cameraStream,
-            crop = options.crop,
-            filter = options.filter,
-            fontColor = options.fontColor,
-            fontFamily = options.fontFamily,
-            fontWeight = options.fontWeight,
-            keepCameraOn = options.keepCameraOn,
-            numWorkers = options.numWorkers,
-            progressCallback = options.progressCallback,
-            saveRenderingContexts = options.saveRenderingContexts,
-            savedRenderingContexts = options.savedRenderingContexts,
-            text = options.text,
-            textAlign = options.textAlign,
-            textBaseline = options.textBaseline,
-            videoElement = options.videoElement,
-            videoHeight = options.videoHeight,
-            videoWidth = options.videoWidth,
-            webcamVideoElement = options.webcamVideoElement,
-            waterMark = options.waterMark,
-            waterMarkHeight = options.waterMarkHeight,
-            waterMarkWidth = options.waterMarkWidth,
-            waterMarkXCoordinate = options.waterMarkXCoordinate,
-            waterMarkYCoordinate = options.waterMarkYCoordinate;
-
-        var gifWidth = Number(options.gifWidth);
-        var gifHeight = Number(options.gifHeight);
-        var interval = Number(options.interval);
-        var sampleInterval = Number(options.sampleInterval);
-        var waitBetweenFrames = hasExistingImages ? 0 : interval * 1000;
-        var renderingContextsToSave = [];
-        var numFrames = savedRenderingContexts.length ? savedRenderingContexts.length : options.numFrames;
-        var pendingFrames = numFrames;
-        var ag = new AnimatedGIF(options);
-        var fontSize = utils.getFontSize(options);
-        var textXCoordinate = options.textXCoordinate ? options.textXCoordinate : textAlign === 'left' ? 1 : textAlign === 'right' ? gifWidth : gifWidth / 2;
-        var textYCoordinate = options.textYCoordinate ? options.textYCoordinate : textBaseline === 'top' ? 1 : textBaseline === 'center' ? gifHeight / 2 : gifHeight;
-        var font = fontWeight + ' ' + fontSize + ' ' + fontFamily;
-        var sourceX = crop ? Math.floor(crop.scaledWidth / 2) : 0;
-        var sourceWidth = crop ? videoWidth - crop.scaledWidth : 0;
-        var sourceY = crop ? Math.floor(crop.scaledHeight / 2) : 0;
-        var sourceHeight = crop ? videoHeight - crop.scaledHeight : 0;
-        var captureFrames = function captureSingleFrame() {
-            var framesLeft = pendingFrames - 1;
-
-            if (savedRenderingContexts.length) {
-                context.putImageData(savedRenderingContexts[numFrames - pendingFrames], 0, 0);
-
-                finishCapture();
-            } else {
-                drawVideo();
-            }
-
-            function drawVideo() {
-                try {
-                    // Makes sure the canvas video heights/widths are in bounds
-                    if (sourceWidth > videoWidth) {
-                        sourceWidth = videoWidth;
-                    }
-
-                    if (sourceHeight > videoHeight) {
-                        sourceHeight = videoHeight;
-                    }
-
-                    if (sourceX < 0) {
-                        sourceX = 0;
-                    }
-
-                    if (sourceY < 0) {
-                        sourceY = 0;
-                    }
-
-                    context.filter = filter;
-
-                    context.drawImage(videoElement, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, gifWidth, gifHeight);
-
-                    finishCapture();
-                } catch (e) {
-                    // There is a Firefox bug that sometimes throws NS_ERROR_NOT_AVAILABLE and
-                    // and IndexSizeError errors when drawing a video element to the canvas
-                    if (e.name === 'NS_ERROR_NOT_AVAILABLE') {
-                        // Wait 100ms before trying again
-                        utils.requestTimeout(drawVideo, 100);
-                    } else {
-                        throw e;
-                    }
-                }
-            }
-
-            function finishCapture() {
-                var imageData = void 0;
-
-                if (saveRenderingContexts) {
-                    renderingContextsToSave.push(context.getImageData(0, 0, gifWidth, gifHeight));
-                }
-                if (waterMark) {
-                    context.drawImage(waterMark, waterMarkXCoordinate, waterMarkYCoordinate, waterMarkWidth, waterMarkHeight);
-                }
-                // If there is text to display, make sure to display it on the canvas after the image is drawn
-                if (text) {
-                    context.font = font;
-                    context.fillStyle = fontColor;
-                    context.textAlign = textAlign;
-                    context.textBaseline = textBaseline;
-                    context.fillText(text, textXCoordinate, textYCoordinate);
-                }
-
-                imageData = context.getImageData(0, 0, gifWidth, gifHeight);
-
-                ag.addFrameImageData(imageData);
-
-                pendingFrames = framesLeft;
-
-                // Call back with an r value indicating how far along we are in capture
-                progressCallback((numFrames - pendingFrames) / numFrames);
-
-                if (framesLeft > 0) {
-                    // test
-                    utils.requestTimeout(captureSingleFrame, waitBetweenFrames);
-                }
-
-                if (!pendingFrames) {
-                    ag.getBase64GIF(function (image) {
-                        callback({
-                            'error': false,
-                            'errorCode': '',
-                            'errorMsg': '',
-                            'image': image,
-                            'cameraStream': cameraStream,
-                            'videoElement': videoElement,
-                            'webcamVideoElement': webcamVideoElement,
-                            'savedRenderingContexts': renderingContextsToSave,
-                            'keepCameraOn': keepCameraOn
-                        });
-                    });
-                }
-            }
-        };
-
-        numFrames = numFrames !== undefined ? numFrames : 10;
-        interval = interval !== undefined ? interval : 0.1; // In seconds
-
-        canvas.width = gifWidth;
-        canvas.height = gifHeight;
-        context = canvas.getContext('2d');
-
-        (function capture() {
-            if (!savedRenderingContexts.length && videoElement.currentTime === 0) {
-                utils.requestTimeout(capture, 100);
-
-                return;
-            }
-
-            captureFrames();
-        })();
-    },
-    getCropDimensions: function getCropDimensions() {
-        var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-        var width = obj.videoWidth;
-        var height = obj.videoHeight;
-        var gifWidth = obj.gifWidth;
-        var gifHeight = obj.gifHeight;
-        var result = {
-            width: 0,
-            height: 0,
-            scaledWidth: 0,
-            scaledHeight: 0
-        };
-
-        if (width > height) {
-            result.width = Math.round(width * (gifHeight / height)) - gifWidth;
-            result.scaledWidth = Math.round(result.width * (height / gifHeight));
-        } else {
-            result.height = Math.round(height * (gifWidth / width)) - gifHeight;
-            result.scaledHeight = Math.round(result.height * (width / gifWidth));
+const noop = () => {};
+const screenShot = {
+  getGIF: (options = {}, callback) => {
+    callback = utils.isFunction(callback) ? callback : noop;
+    let canvas = document.createElement('canvas');
+    let context;
+    let existingImages = options.images;
+    const hasExistingImages = !!existingImages.length;
+    const {
+      cameraStream,
+      crop,
+      filter,
+      fontColor,
+      fontFamily,
+      fontWeight,
+      keepCameraOn,
+      numWorkers,
+      progressCallback,
+      saveRenderingContexts,
+      savedRenderingContexts,
+      text,
+      textAlign,
+      textBaseline,
+      videoElement,
+      videoHeight,
+      videoWidth,
+      webcamVideoElement,
+      waterMark,
+      waterMarkHeight,
+      waterMarkWidth,
+      waterMarkXCoordinate,
+      waterMarkYCoordinate
+    } = options;
+    let gifWidth = Number(options.gifWidth);
+    let gifHeight = Number(options.gifHeight);
+    let interval = Number(options.interval);
+    Number(options.sampleInterval);
+    let waitBetweenFrames = hasExistingImages ? 0 : interval * 1000;
+    let renderingContextsToSave = [];
+    let numFrames = savedRenderingContexts.length ? savedRenderingContexts.length : options.numFrames;
+    let pendingFrames = numFrames;
+    let ag = new AnimatedGIF(options);
+    let fontSize = utils.getFontSize(options);
+    let textXCoordinate = options.textXCoordinate ? options.textXCoordinate : textAlign === 'left' ? 1 : textAlign === 'right' ? gifWidth : gifWidth / 2;
+    let textYCoordinate = options.textYCoordinate ? options.textYCoordinate : textBaseline === 'top' ? 1 : textBaseline === 'center' ? gifHeight / 2 : gifHeight;
+    let font = fontWeight + ' ' + fontSize + ' ' + fontFamily;
+    let sourceX = crop ? Math.floor(crop.scaledWidth / 2) : 0;
+    let sourceWidth = crop ? videoWidth - crop.scaledWidth : 0;
+    let sourceY = crop ? Math.floor(crop.scaledHeight / 2) : 0;
+    let sourceHeight = crop ? videoHeight - crop.scaledHeight : 0;
+    const captureFrames = function captureSingleFrame() {
+      const framesLeft = pendingFrames - 1;
+      if (savedRenderingContexts.length) {
+        context.putImageData(savedRenderingContexts[numFrames - pendingFrames], 0, 0);
+        finishCapture();
+      } else {
+        drawVideo();
+      }
+      function drawVideo() {
+        try {
+          // Makes sure the canvas video heights/widths are in bounds
+          if (sourceWidth > videoWidth) {
+            sourceWidth = videoWidth;
+          }
+          if (sourceHeight > videoHeight) {
+            sourceHeight = videoHeight;
+          }
+          if (sourceX < 0) {
+            sourceX = 0;
+          }
+          if (sourceY < 0) {
+            sourceY = 0;
+          }
+          context.filter = filter;
+          context.drawImage(videoElement, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, gifWidth, gifHeight);
+          finishCapture();
+        } catch (e) {
+          // There is a Firefox bug that sometimes throws NS_ERROR_NOT_AVAILABLE and
+          // and IndexSizeError errors when drawing a video element to the canvas
+          if (e.name === 'NS_ERROR_NOT_AVAILABLE') {
+            // Wait 100ms before trying again
+            utils.requestTimeout(drawVideo, 100);
+          } else {
+            throw e;
+          }
         }
+      }
+      function finishCapture() {
+        let imageData;
+        if (saveRenderingContexts) {
+          renderingContextsToSave.push(context.getImageData(0, 0, gifWidth, gifHeight));
+        }
+        if (waterMark) {
+          context.drawImage(waterMark, waterMarkXCoordinate, waterMarkYCoordinate, waterMarkWidth, waterMarkHeight);
+        }
+        // If there is text to display, make sure to display it on the canvas after the image is drawn
+        if (text) {
+          context.font = font;
+          context.fillStyle = fontColor;
+          context.textAlign = textAlign;
+          context.textBaseline = textBaseline;
+          context.fillText(text, textXCoordinate, textYCoordinate);
+        }
+        imageData = context.getImageData(0, 0, gifWidth, gifHeight);
+        ag.addFrameImageData(imageData);
+        pendingFrames = framesLeft;
 
-        return result;
+        // Call back with an r value indicating how far along we are in capture
+        progressCallback((numFrames - pendingFrames) / numFrames);
+        if (framesLeft > 0) {
+          // test
+          utils.requestTimeout(captureSingleFrame, waitBetweenFrames);
+        }
+        if (!pendingFrames) {
+          ag.getBase64GIF(image => {
+            callback({
+              'error': false,
+              'errorCode': '',
+              'errorMsg': '',
+              'image': image,
+              'cameraStream': cameraStream,
+              'videoElement': videoElement,
+              'webcamVideoElement': webcamVideoElement,
+              'savedRenderingContexts': renderingContextsToSave,
+              'keepCameraOn': keepCameraOn
+            });
+          });
+        }
+      }
+    };
+    numFrames = numFrames !== undefined ? numFrames : 10;
+    interval = interval !== undefined ? interval : 0.1; // In seconds
+
+    canvas.width = gifWidth;
+    canvas.height = gifHeight;
+    context = canvas.getContext('2d');
+    (function capture() {
+      if (!savedRenderingContexts.length && videoElement.currentTime === 0) {
+        utils.requestTimeout(capture, 100);
+        return;
+      }
+      captureFrames();
+    })();
+  },
+  getCropDimensions: (obj = {}) => {
+    const width = obj.videoWidth;
+    const height = obj.videoHeight;
+    const gifWidth = obj.gifWidth;
+    const gifHeight = obj.gifHeight;
+    const result = {
+      width: 0,
+      height: 0,
+      scaledWidth: 0,
+      scaledHeight: 0
+    };
+    if (width > height) {
+      result.width = Math.round(width * (gifHeight / height)) - gifWidth;
+      result.scaledWidth = Math.round(result.width * (height / gifHeight));
+    } else {
+      result.height = Math.round(height * (gifWidth / width)) - gifHeight;
+      result.scaledHeight = Math.round(result.height * (width / gifWidth));
     }
+    return result;
+  }
 };
 
 /*
@@ -2251,270 +1952,244 @@ var screenShot = {
   ==============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-var videoStream = {
-    loadedData: false,
-    defaultVideoDimensions: {
-        width: 640,
-        height: 480
-    },
-    findVideoSize: function findVideoSizeMethod(obj) {
-        findVideoSizeMethod.attempts = findVideoSizeMethod.attempts || 0;
-
-        var cameraStream = obj.cameraStream,
-            completedCallback = obj.completedCallback,
-            videoElement = obj.videoElement;
-
-
-        if (!videoElement) {
-            return;
-        }
-
-        if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
-            videoElement.removeEventListener('loadeddata', videoStream.findVideoSize);
-
-            completedCallback({
-                videoElement: videoElement,
-                cameraStream: cameraStream,
-                videoWidth: videoElement.videoWidth,
-                videoHeight: videoElement.videoHeight
-            });
-        } else {
-            if (findVideoSizeMethod.attempts < 10) {
-                findVideoSizeMethod.attempts += 1;
-
-                utils.requestTimeout(function () {
-                    videoStream.findVideoSize(obj);
-                }, 400);
-            } else {
-                completedCallback({
-                    videoElement: videoElement,
-                    cameraStream: cameraStream,
-                    videoWidth: videoStream.defaultVideoDimensions.width,
-                    videoHeight: videoStream.defaultVideoDimensions.height
-                });
-            }
-        }
-    },
-    onStreamingTimeout: function onStreamingTimeout(callback) {
-        if (utils.isFunction(callback)) {
-            callback({
-                error: true,
-                errorCode: 'getUserMedia',
-                errorMsg: 'There was an issue with the getUserMedia API - Timed out while trying to start streaming',
-                image: null,
-                cameraStream: {}
-            });
-        }
-    },
-    stream: function stream(obj) {
-        var existingVideo = utils.isArray(obj.existingVideo) ? obj.existingVideo[0] : obj.existingVideo;
-        var cameraStream = obj.cameraStream,
-            completedCallback = obj.completedCallback,
-            streamedCallback = obj.streamedCallback,
-            videoElement = obj.videoElement;
-
-
-        if (utils.isFunction(streamedCallback)) {
-            streamedCallback();
-        }
-
-        if (existingVideo) {
-            if (utils.isString(existingVideo)) {
-                videoElement.src = existingVideo;
-                videoElement.innerHTML = '<source src="' + existingVideo + '" type="video/' + utils.getExtension(existingVideo) + '" />';
-            } else if (existingVideo instanceof Blob) {
-                try {
-                    videoElement.src = utils.URL.createObjectURL(existingVideo);
-                } catch (e) {}
-
-                videoElement.innerHTML = '<source src="' + existingVideo + '" type="' + existingVideo.type + '" />';
-            }
-        } else if (videoElement.mozSrcObject) {
-            videoElement.mozSrcObject = cameraStream;
-        } else if (utils.URL) {
-            try {
-                videoElement.srcObject = cameraStream;
-                videoElement.src = utils.URL.createObjectURL(cameraStream);
-            } catch (e) {
-                videoElement.srcObject = cameraStream;
-            }
-        }
-
-        videoElement.play();
-
-        utils.requestTimeout(function checkLoadedData() {
-            checkLoadedData.count = checkLoadedData.count || 0;
-
-            if (videoStream.loadedData === true) {
-                videoStream.findVideoSize({
-                    videoElement: videoElement,
-                    cameraStream: cameraStream,
-                    completedCallback: completedCallback
-                });
-
-                videoStream.loadedData = false;
-            } else {
-                checkLoadedData.count += 1;
-
-                if (checkLoadedData.count > 10) {
-                    videoStream.findVideoSize({
-                        videoElement: videoElement,
-                        cameraStream: cameraStream,
-                        completedCallback: completedCallback
-                    });
-                } else {
-                    checkLoadedData();
-                }
-            }
-        }, 0);
-    },
-    startStreaming: function startStreaming(obj) {
-        var errorCallback = utils.isFunction(obj.error) ? obj.error : utils.noop;
-        var streamedCallback = utils.isFunction(obj.streamed) ? obj.streamed : utils.noop;
-        var completedCallback = utils.isFunction(obj.completed) ? obj.completed : utils.noop;
-        var crossOrigin = obj.crossOrigin,
-            existingVideo = obj.existingVideo,
-            lastCameraStream = obj.lastCameraStream,
-            options = obj.options,
-            webcamVideoElement = obj.webcamVideoElement;
-
-        var videoElement = utils.isElement(existingVideo) ? existingVideo : webcamVideoElement ? webcamVideoElement : document.createElement('video');
-        var cameraStream = void 0;
-
-        if (crossOrigin) {
-            videoElement.crossOrigin = options.crossOrigin;
-        }
-
-        videoElement.autoplay = true;
-        videoElement.loop = true;
-        videoElement.muted = true;
-        videoElement.addEventListener('loadeddata', function (event) {
-            videoStream.loadedData = true;
-            if (options.offset) {
-                videoElement.currentTime = options.offset;
-            }
-        });
-
-        if (existingVideo) {
-            videoStream.stream({
-                videoElement: videoElement,
-                existingVideo: existingVideo,
-                completedCallback: completedCallback
-            });
-        } else if (lastCameraStream) {
-            videoStream.stream({
-                videoElement: videoElement,
-                cameraStream: lastCameraStream,
-                streamedCallback: streamedCallback,
-                completedCallback: completedCallback
-            });
-        } else {
-            utils.getUserMedia({
-                video: true
-            }, function (stream) {
-                videoStream.stream({
-                    videoElement: videoElement,
-                    cameraStream: stream,
-                    streamedCallback: streamedCallback,
-                    completedCallback: completedCallback
-                });
-            }, errorCallback);
-        }
-    },
-    startVideoStreaming: function startVideoStreaming(callback) {
-        var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-
-        var timeoutLength = options.timeout !== undefined ? options.timeout : 0;
-        var originalCallback = options.callback;
-        var webcamVideoElement = options.webcamVideoElement;
-        var noGetUserMediaSupportTimeout = void 0;
-
-        // Some browsers apparently have support for video streaming because of the
-        // presence of the getUserMedia function, but then do not answer our
-        // calls for streaming.
-        // So we'll set up this timeout and if nothing happens after a while, we'll
-        // conclude that there's no actual getUserMedia support.
-        if (timeoutLength > 0) {
-            noGetUserMediaSupportTimeout = utils.requestTimeout(function () {
-                videoStream.onStreamingTimeout(originalCallback);
-            }, 10000);
-        }
-
-        videoStream.startStreaming({
-            error: function error() {
-                originalCallback({
-                    error: true,
-                    errorCode: 'getUserMedia',
-                    errorMsg: 'There was an issue with the getUserMedia API - the user probably denied permission',
-                    image: null,
-                    cameraStream: {}
-                });
-            },
-            streamed: function streamed() {
-                // The streaming started somehow, so we can assume there is getUserMedia support
-                clearTimeout(noGetUserMediaSupportTimeout);
-            },
-            completed: function completed() {
-                var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-                var cameraStream = obj.cameraStream,
-                    videoElement = obj.videoElement,
-                    videoHeight = obj.videoHeight,
-                    videoWidth = obj.videoWidth;
-
-
-                callback({
-                    cameraStream: cameraStream,
-                    videoElement: videoElement,
-                    videoHeight: videoHeight,
-                    videoWidth: videoWidth
-                });
-            },
-            lastCameraStream: options.lastCameraStream,
-            webcamVideoElement: webcamVideoElement,
-            crossOrigin: options.crossOrigin,
-            options: options
-        });
-    },
-    stopVideoStreaming: function stopVideoStreaming(obj) {
-        obj = utils.isObject(obj) ? obj : {};
-
-        var _obj = obj,
-            keepCameraOn = _obj.keepCameraOn,
-            videoElement = _obj.videoElement,
-            webcamVideoElement = _obj.webcamVideoElement;
-
-        var cameraStream = obj.cameraStream || {};
-        var cameraStreamTracks = cameraStream.getTracks ? cameraStream.getTracks() || [] : [];
-        var hasCameraStreamTracks = !!cameraStreamTracks.length;
-        var firstCameraStreamTrack = cameraStreamTracks[0];
-
-        if (!keepCameraOn && hasCameraStreamTracks) {
-            if (utils.isFunction(firstCameraStreamTrack.stop)) {
-                // Stops the camera stream
-                firstCameraStreamTrack.stop();
-            }
-        }
-
-        if (utils.isElement(videoElement) && !webcamVideoElement) {
-            // Pauses the video, revokes the object URL (freeing up memory), and remove the video element
-            videoElement.pause();
-
-            // Destroys the object url
-            if (utils.isFunction(utils.URL.revokeObjectURL) && !utils.webWorkerError) {
-                if (videoElement.src) {
-                    utils.URL.revokeObjectURL(videoElement.src);
-                }
-            }
-
-            // Removes the video element from the DOM
-            utils.removeElement(videoElement);
-        }
+const videoStream = {
+  loadedData: false,
+  defaultVideoDimensions: {
+    width: 640,
+    height: 480
+  },
+  findVideoSize: function findVideoSizeMethod(obj) {
+    findVideoSizeMethod.attempts = findVideoSizeMethod.attempts || 0;
+    const {
+      cameraStream,
+      completedCallback,
+      videoElement
+    } = obj;
+    if (!videoElement) {
+      return;
     }
+    if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+      videoElement.removeEventListener('loadeddata', videoStream.findVideoSize);
+      completedCallback({
+        videoElement: videoElement,
+        cameraStream: cameraStream,
+        videoWidth: videoElement.videoWidth,
+        videoHeight: videoElement.videoHeight
+      });
+    } else {
+      if (findVideoSizeMethod.attempts < 10) {
+        findVideoSizeMethod.attempts += 1;
+        utils.requestTimeout(function () {
+          videoStream.findVideoSize(obj);
+        }, 400);
+      } else {
+        completedCallback({
+          videoElement: videoElement,
+          cameraStream: cameraStream,
+          videoWidth: videoStream.defaultVideoDimensions.width,
+          videoHeight: videoStream.defaultVideoDimensions.height
+        });
+      }
+    }
+  },
+  onStreamingTimeout: callback => {
+    if (utils.isFunction(callback)) {
+      callback({
+        error: true,
+        errorCode: 'getUserMedia',
+        errorMsg: 'There was an issue with the getUserMedia API - Timed out while trying to start streaming',
+        image: null,
+        cameraStream: {}
+      });
+    }
+  },
+  stream: obj => {
+    const existingVideo = utils.isArray(obj.existingVideo) ? obj.existingVideo[0] : obj.existingVideo;
+    const {
+      cameraStream,
+      completedCallback,
+      streamedCallback,
+      videoElement
+    } = obj;
+    if (utils.isFunction(streamedCallback)) {
+      streamedCallback();
+    }
+    if (existingVideo) {
+      if (utils.isString(existingVideo)) {
+        videoElement.src = existingVideo;
+        videoElement.innerHTML = '<source src="' + existingVideo + '" type="video/' + utils.getExtension(existingVideo) + '" />';
+      } else if (existingVideo instanceof Blob) {
+        try {
+          videoElement.src = utils.URL.createObjectURL(existingVideo);
+        } catch (e) {}
+        videoElement.innerHTML = '<source src="' + existingVideo + '" type="' + existingVideo.type + '" />';
+      }
+    } else if (videoElement.mozSrcObject) {
+      videoElement.mozSrcObject = cameraStream;
+    } else if (utils.URL) {
+      try {
+        videoElement.srcObject = cameraStream;
+        videoElement.src = utils.URL.createObjectURL(cameraStream);
+      } catch (e) {
+        videoElement.srcObject = cameraStream;
+      }
+    }
+    videoElement.play();
+    utils.requestTimeout(function checkLoadedData() {
+      checkLoadedData.count = checkLoadedData.count || 0;
+      if (videoStream.loadedData === true) {
+        videoStream.findVideoSize({
+          videoElement,
+          cameraStream,
+          completedCallback
+        });
+        videoStream.loadedData = false;
+      } else {
+        checkLoadedData.count += 1;
+        if (checkLoadedData.count > 10) {
+          videoStream.findVideoSize({
+            videoElement,
+            cameraStream,
+            completedCallback
+          });
+        } else {
+          checkLoadedData();
+        }
+      }
+    }, 0);
+  },
+  startStreaming: obj => {
+    const errorCallback = utils.isFunction(obj.error) ? obj.error : utils.noop;
+    const streamedCallback = utils.isFunction(obj.streamed) ? obj.streamed : utils.noop;
+    const completedCallback = utils.isFunction(obj.completed) ? obj.completed : utils.noop;
+    const {
+      crossOrigin,
+      existingVideo,
+      lastCameraStream,
+      options,
+      webcamVideoElement
+    } = obj;
+    const videoElement = utils.isElement(existingVideo) ? existingVideo : webcamVideoElement ? webcamVideoElement : document.createElement('video');
+    if (crossOrigin) {
+      videoElement.crossOrigin = options.crossOrigin;
+    }
+    videoElement.autoplay = true;
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.addEventListener('loadeddata', event => {
+      videoStream.loadedData = true;
+      if (options.offset) {
+        videoElement.currentTime = options.offset;
+      }
+    });
+    if (existingVideo) {
+      videoStream.stream({
+        videoElement,
+        existingVideo,
+        completedCallback
+      });
+    } else if (lastCameraStream) {
+      videoStream.stream({
+        videoElement,
+        cameraStream: lastCameraStream,
+        streamedCallback,
+        completedCallback
+      });
+    } else {
+      utils.getUserMedia({
+        video: true
+      }, function (stream) {
+        videoStream.stream({
+          videoElement: videoElement,
+          cameraStream: stream,
+          streamedCallback: streamedCallback,
+          completedCallback: completedCallback
+        });
+      }, errorCallback);
+    }
+  },
+  startVideoStreaming: (callback, options = {}) => {
+    const timeoutLength = options.timeout !== undefined ? options.timeout : 0;
+    const originalCallback = options.callback;
+    const webcamVideoElement = options.webcamVideoElement;
+    let noGetUserMediaSupportTimeout;
+
+    // Some browsers apparently have support for video streaming because of the
+    // presence of the getUserMedia function, but then do not answer our
+    // calls for streaming.
+    // So we'll set up this timeout and if nothing happens after a while, we'll
+    // conclude that there's no actual getUserMedia support.
+    if (timeoutLength > 0) {
+      noGetUserMediaSupportTimeout = utils.requestTimeout(() => {
+        videoStream.onStreamingTimeout(originalCallback);
+      }, 10000);
+    }
+    videoStream.startStreaming({
+      error: () => {
+        originalCallback({
+          error: true,
+          errorCode: 'getUserMedia',
+          errorMsg: 'There was an issue with the getUserMedia API - the user probably denied permission',
+          image: null,
+          cameraStream: {}
+        });
+      },
+      streamed: () => {
+        // The streaming started somehow, so we can assume there is getUserMedia support
+        clearTimeout(noGetUserMediaSupportTimeout);
+      },
+      completed: (obj = {}) => {
+        const {
+          cameraStream,
+          videoElement,
+          videoHeight,
+          videoWidth
+        } = obj;
+        callback({
+          cameraStream,
+          videoElement,
+          videoHeight,
+          videoWidth
+        });
+      },
+      lastCameraStream: options.lastCameraStream,
+      webcamVideoElement: webcamVideoElement,
+      crossOrigin: options.crossOrigin,
+      options: options
+    });
+  },
+  stopVideoStreaming: obj => {
+    obj = utils.isObject(obj) ? obj : {};
+    const {
+      keepCameraOn,
+      videoElement,
+      webcamVideoElement
+    } = obj;
+    const cameraStream = obj.cameraStream || {};
+    const cameraStreamTracks = cameraStream.getTracks ? cameraStream.getTracks() || [] : [];
+    const hasCameraStreamTracks = !!cameraStreamTracks.length;
+    const firstCameraStreamTrack = cameraStreamTracks[0];
+    if (!keepCameraOn && hasCameraStreamTracks) {
+      if (utils.isFunction(firstCameraStreamTrack.stop)) {
+        // Stops the camera stream
+        firstCameraStreamTrack.stop();
+      }
+    }
+    if (utils.isElement(videoElement) && !webcamVideoElement) {
+      // Pauses the video, revokes the object URL (freeing up memory), and remove the video element
+      videoElement.pause();
+
+      // Destroys the object url
+      if (utils.isFunction(utils.URL.revokeObjectURL) && !utils.webWorkerError) {
+        if (videoElement.src) {
+          utils.URL.revokeObjectURL(videoElement.src);
+        }
+      }
+
+      // Removes the video element from the DOM
+      utils.removeElement(videoElement);
+    }
+  }
 };
 
 /*
@@ -2522,13 +2197,8 @@ var videoStream = {
   =====================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
 function stopVideoStreaming(options) {
   options = utils.isObject(options) ? options : {};
-
   videoStream.stopVideoStreaming(options);
 }
 
@@ -2537,66 +2207,55 @@ function stopVideoStreaming(options) {
   ==================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
 function createAndGetGIF(obj, callback) {
-    var options = obj.options || {};
-
-    var images = options.images,
-        video = options.video;
-
-    var gifWidth = Number(options.gifWidth);
-    var gifHeight = Number(options.gifHeight);
-    var numFrames = Number(options.numFrames);
-    var cameraStream = obj.cameraStream,
-        videoElement = obj.videoElement,
-        videoWidth = obj.videoWidth,
-        videoHeight = obj.videoHeight;
-
-    var cropDimensions = screenShot.getCropDimensions({
-        videoWidth: videoWidth,
-        videoHeight: videoHeight,
-        gifHeight: gifHeight,
-        gifWidth: gifWidth
+  let options = obj.options || {};
+  const {
+    images,
+    video
+  } = options;
+  const gifWidth = Number(options.gifWidth);
+  const gifHeight = Number(options.gifHeight);
+  Number(options.numFrames);
+  let {
+    cameraStream,
+    videoElement,
+    videoWidth,
+    videoHeight
+  } = obj;
+  const cropDimensions = screenShot.getCropDimensions({
+    videoWidth,
+    videoHeight,
+    gifHeight,
+    gifWidth
+  });
+  const completeCallback = callback;
+  options.crop = cropDimensions;
+  options.videoElement = videoElement;
+  options.videoWidth = videoWidth;
+  options.videoHeight = videoHeight;
+  options.cameraStream = cameraStream;
+  if (!utils.isElement(videoElement)) {
+    return;
+  }
+  videoElement.width = gifWidth + cropDimensions.width;
+  videoElement.height = gifHeight + cropDimensions.height;
+  if (!options.webcamVideoElement) {
+    utils.setCSSAttr(videoElement, {
+      position: 'fixed',
+      opacity: '0'
     });
-    var completeCallback = callback;
+    document.body.appendChild(videoElement);
+  }
 
-    options.crop = cropDimensions;
-    options.videoElement = videoElement;
-    options.videoWidth = videoWidth;
-    options.videoHeight = videoHeight;
-    options.cameraStream = cameraStream;
-
-    if (!utils.isElement(videoElement)) {
-        return;
+  // Firefox doesn't seem to obey autoplay if the element is not in the DOM when the content
+  // is loaded, so we must manually trigger play after adding it, or the video will be frozen
+  videoElement.play();
+  screenShot.getGIF(options, obj => {
+    if ((!images || !images.length) && (!video || !video.length)) {
+      stopVideoStreaming(obj);
     }
-
-    videoElement.width = gifWidth + cropDimensions.width;
-    videoElement.height = gifHeight + cropDimensions.height;
-
-    if (!options.webcamVideoElement) {
-        utils.setCSSAttr(videoElement, {
-            position: 'fixed',
-            opacity: '0'
-        });
-
-        document.body.appendChild(videoElement);
-    }
-
-    // Firefox doesn't seem to obey autoplay if the element is not in the DOM when the content
-    // is loaded, so we must manually trigger play after adding it, or the video will be frozen
-    videoElement.play();
-
-    screenShot.getGIF(options, function (obj) {
-        if ((!images || !images.length) && (!video || !video.length)) {
-            stopVideoStreaming(obj);
-        }
-
-        completeCallback(obj);
-    });
+    completeCallback(obj);
+  });
 }
 
 /*
@@ -2604,65 +2263,50 @@ function createAndGetGIF(obj, callback) {
   ================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-function existingVideo() {
-    var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var callback = obj.callback,
-        existingVideo = obj.existingVideo,
-        options = obj.options;
-
-    var skipObj = {
-        getUserMedia: true,
-        'window.URL': true
-    };
-    var errorObj = error.validate(skipObj);
-    var loadedImages = 0;
-    var videoType = void 0;
-    var videoSrc = void 0;
-    var tempImage = void 0;
-    var ag = void 0;
-
-    if (errorObj.error) {
-        return callback(errorObj);
+function existingVideo(obj = {}) {
+  let {
+    callback,
+    existingVideo,
+    options
+  } = obj;
+  const skipObj = {
+    getUserMedia: true,
+    'window.URL': true
+  };
+  const errorObj = error.validate(skipObj);
+  let videoType;
+  let videoSrc;
+  if (errorObj.error) {
+    return callback(errorObj);
+  }
+  if (utils.isElement(existingVideo) && existingVideo.src) {
+    videoSrc = existingVideo.src;
+    videoType = utils.getExtension(videoSrc);
+    if (!utils.isSupported.videoCodecs[videoType]) {
+      return callback(error.messages.videoCodecs);
     }
-
-    if (utils.isElement(existingVideo) && existingVideo.src) {
-        videoSrc = existingVideo.src;
-        videoType = utils.getExtension(videoSrc);
-
-        if (!utils.isSupported.videoCodecs[videoType]) {
-            return callback(error.messages.videoCodecs);
-        }
-    } else if (utils.isArray(existingVideo)) {
-        utils.each(existingVideo, function (iterator, videoSrc) {
-            if (videoSrc instanceof Blob) {
-                videoType = videoSrc.type.substr(videoSrc.type.lastIndexOf('/') + 1, videoSrc.length);
-            } else {
-                videoType = videoSrc.substr(videoSrc.lastIndexOf('.') + 1, videoSrc.length);
-            }
-
-            if (utils.isSupported.videoCodecs[videoType]) {
-                existingVideo = videoSrc;
-
-                return false;
-            }
-        });
-    }
-
-    videoStream.startStreaming({
-        completed: function completed(obj) {
-            obj.options = options || {};
-
-            createAndGetGIF(obj, callback);
-        },
-        existingVideo: existingVideo,
-        crossOrigin: options.crossOrigin,
-        options: options
+  } else if (utils.isArray(existingVideo)) {
+    utils.each(existingVideo, function (iterator, videoSrc) {
+      if (videoSrc instanceof Blob) {
+        videoType = videoSrc.type.substr(videoSrc.type.lastIndexOf('/') + 1, videoSrc.length);
+      } else {
+        videoType = videoSrc.substr(videoSrc.lastIndexOf('.') + 1, videoSrc.length);
+      }
+      if (utils.isSupported.videoCodecs[videoType]) {
+        existingVideo = videoSrc;
+        return false;
+      }
     });
+  }
+  videoStream.startStreaming({
+    completed: obj => {
+      obj.options = options || {};
+      createAndGetGIF(obj, callback);
+    },
+    existingVideo: existingVideo,
+    crossOrigin: options.crossOrigin,
+    options: options
+  });
 }
 
 /*
@@ -2670,43 +2314,31 @@ function existingVideo() {
   =================
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-function existingWebcam() {
-    var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    var callback = obj.callback,
-        lastCameraStream = obj.lastCameraStream,
-        options = obj.options,
-        webcamVideoElement = obj.webcamVideoElement;
-
-
-    if (!isWebCamGIFSupported()) {
-        return callback(error.validate());
-    }
-
-    if (options.savedRenderingContexts.length) {
-        screenShot.getGIF(options, function (obj) {
-            callback(obj);
-        });
-
-        return;
-    }
-
-    videoStream.startVideoStreaming(function () {
-        var obj = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-        obj.options = options || {};
-
-        createAndGetGIF(obj, callback);
-    }, {
-        lastCameraStream: lastCameraStream,
-        callback: callback,
-        webcamVideoElement: webcamVideoElement,
-        crossOrigin: options.crossOrigin
+function existingWebcam(obj = {}) {
+  const {
+    callback,
+    lastCameraStream,
+    options,
+    webcamVideoElement
+  } = obj;
+  if (!isWebCamGIFSupported()) {
+    return callback(error.validate());
+  }
+  if (options.savedRenderingContexts.length) {
+    screenShot.getGIF(options, obj => {
+      callback(obj);
     });
+    return;
+  }
+  videoStream.startVideoStreaming((obj = {}) => {
+    obj.options = options || {};
+    createAndGetGIF(obj, callback);
+  }, {
+    lastCameraStream: lastCameraStream,
+    callback: callback,
+    webcamVideoElement: webcamVideoElement,
+    crossOrigin: options.crossOrigin
+  });
 }
 
 /*
@@ -2714,26 +2346,18 @@ function existingWebcam() {
   ============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
 function createGIF(userOptions, callback) {
   callback = utils.isFunction(userOptions) ? userOptions : callback;
   userOptions = utils.isObject(userOptions) ? userOptions : {};
-
   if (!utils.isFunction(callback)) {
     return;
   }
-
-  var options = utils.mergeOptions(defaultOptions, userOptions) || {};
-  var lastCameraStream = userOptions.cameraStream;
-  var images = options.images;
-  var imagesLength = images ? images.length : 0;
-  var video = options.video;
-  var webcamVideoElement = options.webcamVideoElement;
-
+  let options = utils.mergeOptions(defaultOptions, userOptions) || {};
+  const lastCameraStream = userOptions.cameraStream;
+  const images = options.images;
+  const imagesLength = images ? images.length : 0;
+  const video = options.video;
+  const webcamVideoElement = options.webcamVideoElement;
   options = utils.mergeOptions(options, {
     'gifWidth': Math.floor(options.gifWidth),
     'gifHeight': Math.floor(options.gifHeight)
@@ -2751,16 +2375,16 @@ function createGIF(userOptions, callback) {
     // If the user would like to create a GIF from an existing HTML5 video
     existingVideo({
       'existingVideo': video,
-      callback: callback,
-      options: options
+      callback,
+      options
     });
   } else {
     // If the user would like to create a GIF from a webcam stream
     existingWebcam({
-      lastCameraStream: lastCameraStream,
-      callback: callback,
-      webcamVideoElement: webcamVideoElement,
-      options: options
+      lastCameraStream,
+      callback,
+      webcamVideoElement,
+      options
     });
   }
 }
@@ -2770,27 +2394,20 @@ function createGIF(userOptions, callback) {
   ===============
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
 function takeSnapShot(userOptions, callback) {
-    callback = utils.isFunction(userOptions) ? userOptions : callback;
-    userOptions = utils.isObject(userOptions) ? userOptions : {};
-
-    if (!utils.isFunction(callback)) {
-        return;
-    }
-
-    var mergedOptions = utils.mergeOptions(defaultOptions, userOptions);
-    var options = utils.mergeOptions(mergedOptions, {
-        'interval': .1,
-        'numFrames': 1,
-        'gifWidth': Math.floor(mergedOptions.gifWidth),
-        'gifHeight': Math.floor(mergedOptions.gifHeight)
-    });
-
-    createGIF(options, callback);
+  callback = utils.isFunction(userOptions) ? userOptions : callback;
+  userOptions = utils.isObject(userOptions) ? userOptions : {};
+  if (!utils.isFunction(callback)) {
+    return;
+  }
+  const mergedOptions = utils.mergeOptions(defaultOptions, userOptions);
+  const options = utils.mergeOptions(mergedOptions, {
+    'interval': .1,
+    'numFrames': 1,
+    'gifWidth': Math.floor(mergedOptions.gifWidth),
+    'gifHeight': Math.floor(mergedOptions.gifHeight)
+  });
+  createGIF(options, callback);
 }
 
 /*
@@ -2798,22 +2415,17 @@ function takeSnapShot(userOptions, callback) {
   ======
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
-*/
-
-// Dependencies
-var API = {
-  'utils': utils$2,
-  'error': error$2,
-  'defaultOptions': defaultOptions$2,
+const API = {
+  'utils': utils$1,
+  'error': error$1,
+  'defaultOptions': defaultOptions$1,
   'createGIF': createGIF,
   'takeSnapShot': takeSnapShot,
   'stopVideoStreaming': stopVideoStreaming,
-  'isSupported': isSupported,
+  'isSupported': isSupported$1,
   'isWebCamGIFSupported': isWebCamGIFSupported,
   'isExistingVideoGIFSupported': isExistingVideoGIFSupported,
-  'isExistingImagesGIFSupported': isSupported$1,
+  'isExistingImagesGIFSupported': isSupported,
   'VERSION': '0.4.5'
 };
 
@@ -2822,18 +2434,15 @@ var API = {
   ========
 */
 
-/* Copyright  2017 Yahoo Inc.
- * Copyrights licensed under the MIT License. See the accompanying LICENSE file for terms.
- */
 
 // Universal Module Definition (UMD) to support AMD, CommonJS/Node.js, and plain browser loading
 if (typeof define === 'function' && define.amd) {
-    define([], function () {
-        return API;
-    });
+  define([], function () {
+    return API;
+  });
 } else if (typeof exports !== 'undefined') {
-    module.exports = API;
+  module.exports = API;
 } else {
-    window.gifshot = API;
+  window.gifshot = API;
 }
 }(typeof window !== "undefined" ? window : {}, typeof document !== "undefined" ? document : { createElement: function() {} }, typeof window !== "undefined" ? window.navigator : {}));

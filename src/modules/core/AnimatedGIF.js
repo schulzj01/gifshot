@@ -239,10 +239,12 @@ AnimatedGIF.prototype = {
           onRenderProgressCallback(0.75 + 0.25 * frame.position * 1.0 / frames.length);
 
           for (let i = 0; i < frameDuration; i ++) {
-              gifWriter.addFrame(0, 0, width, height, frame.pixels, {
-                  palette: framePalette,
-                  delay: delay
-              });
+            //Override our interval delay if we have them set in our image objects
+            let frameDelay = (hasExistingImages && existingImages[frame.position].hasOwnProperty('interval')) ? existingImages[frame.position].interval * 100 : delay
+              gifWriter$$1.addFrame(0, 0, width, height, frame.pixels, {
+                palette: framePalette,
+                delay: frameDelay
+            });
           }
       });
 

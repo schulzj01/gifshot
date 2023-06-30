@@ -218,6 +218,23 @@ gifshot.createGIF({
   }
 });
 ```
+**Images With Frame-Specific Intervals**
+```javascript
+gifshot.createGIF({
+  'images': [
+    { src:'http://i.imgur.com/2OO33vX.jpg', interval: 1.5 }, //Slow down the first frame
+    { src:'http://i.imgur.com/qOwVaSN.png', interval: 0.3 },
+    { src:'http://i.imgur.com/Vo5mFZJ.gif', interval: 0.3 }
+  ]
+},function(obj) {
+  if(!obj.error) {
+    var image = obj.image,
+    animatedImage = document.createElement('img');
+    animatedImage.src = image;
+    document.body.appendChild(animatedImage);
+  }
+});
+```
 
 **Snap Shot**
 
