@@ -52,6 +52,7 @@
     "gulp-sequence": "^1.0.0",
     "gulp-uglify": "^3.0.2",
     "jshint": "latest",
+    "open": "^8.4.0",
     "precommit-hook": "^3.0.0",
     "rollup": "^3.26.0",
     "run-sequence": "^2.2.1"
