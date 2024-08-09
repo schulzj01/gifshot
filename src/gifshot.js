@@ -1529,7 +1529,7 @@ AnimatedGIF.prototype = {
       for (let i = 0; i < frameDuration; i++) {
         //Override our interval delay if we have them set in our image objects
         let frameDelay = hasExistingImages && existingImages[frame.position].hasOwnProperty('interval') ? existingImages[frame.position].interval * 100 : delay;
-        gifWriter$$1.addFrame(0, 0, width, height, frame.pixels, {
+        gifWriter$1.addFrame(0, 0, width, height, frame.pixels, {
           palette: framePalette,
           delay: frameDelay
         });
